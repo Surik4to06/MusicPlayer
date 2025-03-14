@@ -32,14 +32,14 @@ export default () => {
             title: "Música 2", 
             author: "Beltrano", 
             thumbnail: "https://i.pinimg.com/1200x/85/ab/4c/85ab4cbe8bcff67648d771d8f24dfb1c.jpg", 
-            url: require("../../../assets/Music/Doce Veneno _ Call Of The Night - Ft. _Shaman_(M4A_128K).m4a") 
+            url: require("../../../assets/Music/É TOUCHDOWN 🔥🗣️ -Mc santt (Dj Talala_Dj Blakes _ Ds.sheik01)(M4A_128K).m4a") 
         },
         { 
             id: "4", 
             title: "Música 2", 
             author: "Beltrano", 
             thumbnail: "https://i.pinimg.com/1200x/85/ab/4c/85ab4cbe8bcff67648d771d8f24dfb1c.jpg", 
-            url: require("../../../assets/Music/Doce Veneno _ Call Of The Night - Ft. _Shaman_(M4A_128K).m4a") 
+            url: require("../../../assets/Music/ELA VEM BROTA NO MEU SETOR - (DJ NEGRESKO_ DJ REDY _ DJ MENOR DO FLORIDA)(M4A_128K).m4a") 
         },
         { 
             id: "5", 
