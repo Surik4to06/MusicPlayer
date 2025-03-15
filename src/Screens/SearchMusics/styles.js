@@ -47,4 +47,53 @@ export const styles = StyleSheet.create({
   flatList: {
     width: '100%',
   },
+  containerModal: {
+    padding: 10,
+    flex: 1,
+    backgroundColor: '#212121',
+  },
+  containerIconModal: {
+    padding: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  containerIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 50,
+    height: 50,
+    borderRadius: 999,
+    backgroundColor: '#414141',
+  },
+  backIcon: {
+    marginLeft: -3,
+  },
+  containerGeral: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageMusic: {
+    width: 300, 
+    height: 300,
+    borderRadius: 15,
+    zIndex: 1,
+  },
+  imageMusicBluer: {
+    position: 'absolute', 
+    zIndex: 0,
+  },
+  titlePopup: {
+    color: '#FFF',
+    fontSize: 25,
+    marginTop: 10,
+  },
+  containerBtns: {
+    width: '50%',
+    alignItems: 'flex-end',
+    paddingRight: 10,
+    gap: 15,
+    marginRight: -35,
+  },
 });

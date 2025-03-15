@@ -19,7 +19,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.surik4to06.MusicPlayer"
     },
     "web": {
       "favicon": "./assets/favicon.png"
