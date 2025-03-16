@@ -1,10 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { Platform, StatusBar } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1, 
-    // paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   containerInput: {
     marginTop: 10,
@@ -16,14 +14,12 @@ export const styles = StyleSheet.create({
     paddingRight: 20,
 },
 inputText: {
-    width: '90%',
-    borderTopLeftRadius: 9999,
-    borderBottomLeftRadius: 9999,
+    width: '100%',
+    borderRadius: 999,
     paddingLeft: 15,
     fontSize: 17,
     borderWidth: 1,
     borderColor: 'gray',
-    borderRightWidth: 0,
 },
 containerIcon: {
     justifyContent: 'center',
