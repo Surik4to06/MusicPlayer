@@ -22,8 +22,9 @@ export const styles = StyleSheet.create({
         borderRadius: 999,
     },
     username: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 25, 
+        color: '#FFF', 
+        marginLeft: 15
     },
     modalBackground: {
         flex: 1,
@@ -36,6 +37,27 @@ export const styles = StyleSheet.create({
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        backgroundColor: '#FFF',
+        backgroundColor: '#212121',
+        width: '85%',
+        height: 500,
+        alignItems: 'center',
+        borderRadius: 20,
     },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+
+      photoProfile:{
+        marginTop: -50,
+        height: 130,
+        width: 130,
+        justifyContent: 'center', 
+        alignItems: 'center',
+        borderWidth: 10, 
+        borderColor: '#212121', 
+        borderRadius: 999,
+      },
 });

@@ -1,5 +1,4 @@
 import React, { createContext, useState } from "react";
-import { Auth } from "../Services/firebaseConfig";
 
 export const AuthContext = createContext({});
 
@@ -9,8 +8,7 @@ function AuthProvider({ children }) {
     const [playerMusic, setPlayerMusic] = useState(null);
     const [likedSongs, setLikedSongs] = useState([]); // Armazena os IDs das músicas curtidas
     const [teste, setTeste] = useState([]); // Armazena os IDs das músicas curtidas
-
-    const user = Auth.currentUser.uid;
+    const [usersList, setUsersList] = useState([]);
 
     const togglePlay = async (item) => {
             if (currentSound) {
@@ -38,7 +36,7 @@ function AuthProvider({ children }) {
 
 
     return (
-        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, likedSongs, setLikedSongs, teste, setTeste, user }}>
+        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, likedSongs, setLikedSongs, teste, setTeste, usersList, setUsersList }}>
             {children}
         </AuthContext.Provider>
     )

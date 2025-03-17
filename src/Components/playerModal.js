@@ -4,11 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { AuthContext } from "../Context/AuthContext"; // Importa o contexto
+
 import { Auth } from "../Services/firebaseConfig";
 
 const PlayerMusic = ({ route, navigation }) => {
     const { playerMusic } = route.params;
-    const { likedSongs, setLikedSongs, user } = useContext(AuthContext); // Obtém usuário e lista de curtidas
+    const { likedSongs, setLikedSongs } = useContext(AuthContext); // Obtém usuário e lista de curtidas
 
     const [sound, setSound] = useState(null);
     const [position, setPosition] = useState(0);

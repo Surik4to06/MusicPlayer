@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StatusBar, TextInput, View } from 'react-native';
+import { StatusBar, TextInput, View } from 'react-native';
+
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../Services/firebaseConfig";
 
 import { AuthContext } from '../../Context/AuthContext';
 import { styles } from './styles';
@@ -12,43 +14,67 @@ import SearchMusic from '../SearchMusics';
 const Tab = createMaterialTopTabNavigator();
 
 export default () => {
-  const API_URL = "https://api.deezer.com/search?q=";
+  // const API_URL = "https://api.deezer.com/search?q=";
 
-  const { setMusicList } = useContext(AuthContext);
+  const { setMusicList, setUsersList } = useContext(AuthContext);
 
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    const getMusics = async () => {
+    const getResults = async () => {
       let query = searchText.trim() ? encodeURIComponent(searchText) : "top hits";
       let response;
   
       try {
+        // 🔍 Buscar Músicas
         response = await fetch(`https://api.deezer.com/search?q=${query}`);
         let data = await response.json();
   
         if (!data || !data.data) {
-          setMusicList([]); // Se não houver resultados, retorna lista vazia
-          return;
+          setMusicList([]);
+        } else {
+          const formattedResults = data.data.map(track => ({
+            id: track.id,
+            title: track.title,
+            author: track.artist.name,
+            thumbnail: track.album.cover_medium,
+            duration: track.duration ?? '00:00',
+            url: track.preview
+          }));
+          setMusicList(formattedResults);
         }
   
-        const formattedResults = data.data.map(track => ({
-          id: track.id,
-          title: track.title,
-          author: track.artist.name,
-          thumbnail: track.album.cover_medium,
-          duration: track.duration ?? '00:00',
-          url: track.preview // URL do áudio de 30s
-        }));
-  
-        setMusicList(formattedResults);
+        // Buscar Usuários
+        const usersResults = await searchUsers(searchText);
+        setUsersList(usersResults);
       } catch (error) {
-        console.error("Erro na busca de músicas:", error);
+        console.error("Erro na busca:", error);
       }
     };
   
-    getMusics();
+    getResults();
   }, [searchText]);
+
+  const searchUsers = async (searchTerm) => {
+    if (!searchTerm.trim()) return []; // Se a pesquisa estiver vazia, retorna uma lista vazia
+  
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("displayName", ">=", searchTerm));
+  
+      const querySnapshot = await getDocs(q);
+      const users = [];
+  
+      querySnapshot.forEach((doc) => {
+        users.push({ id: doc.id, ...doc.data() });
+      });
+  
+      return users;
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      return [];
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -64,7 +90,7 @@ export default () => {
       </View>
 
       <Tab.Navigator>
-        <Tab.Screen name="Friends" component={SearchFriends} />
+        <Tab.Screen name="Users" component={SearchFriends} />
         <Tab.Screen name="Musics" component={SearchMusic} />
       </Tab.Navigator>
     </View>

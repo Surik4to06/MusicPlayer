@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    marginBottom: 15,
+    marginBottom: 30,
   },
   containerTerd: {
     flex: 1,
@@ -57,5 +57,10 @@ export const styles = StyleSheet.create({
   },
   containerTopTab: {
     flex: 1,
+  },
+  sheetContent: { 
+    flex: 1, 
+    backgroundColor: '#212121', 
+    padding: 10,
   },
 });

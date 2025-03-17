@@ -87,7 +87,7 @@ export default () => {
                 )}/>
                 
             
-            <Text>Usuário nn possui nenhuma musica</Text>
+            {/* <Text>Usuário nn possui nenhuma musica</Text> */}
         </View>
     );
 }

@@ -1,115 +1,126 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { FlatList, View, Animated, Easing } from "react-native";
+import { Audio } from "expo-av"; // 🔊 Biblioteca de áudio
 
 import CardMusic from "../../Components/cardMusic";
 import { styles } from "./styles";
 import { AuthContext } from "../../Context/AuthContext";
 
 export default () => {
-    const { likedSongs, setLikedSongs } = useContext(AuthContext); // Garante que setLikedSongs está acessível
+    const { likedSongs } = useContext(AuthContext);
     const [playerMusic, setPlayerMusic] = useState(null);
     const [currentMusicId, setCurrentMusicId] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [sound, setSound] = useState(null);
     const textAnimations = useRef({}).current;
 
-    console.log("Liked Songs Data:", likedSongs);
-
-    // Garante que likedSongs seja um array válido e remove músicas duplicadas
     useEffect(() => {
-        if (!Array.isArray(likedSongs)) {
-            console.error("❌ likedSongs não é um array válido!");
-            return;
-        }
+        return () => {
+            if (sound) {
+                sound.unloadAsync(); // 🔄 Libera o som ao desmontar o componente
+            }
+        };
+    }, [sound]);
 
-        // Remove músicas duplicadas pelo ID corretamente
-        const uniqueSongs = likedSongs.filter(
-            (song, index, self) => song?.id && index === self.findIndex((s) => s.id === song.id)
-        );
-
-        if (uniqueSongs.length !== likedSongs.length) {
-            console.log("⚠️ Removendo músicas duplicadas...");
-            setLikedSongs(uniqueSongs);
-        }
-
-        // Inicializa animações para cada música única
-        uniqueSongs.forEach((music) => {
-            if (music?.id && !textAnimations[music.id]) {
-                textAnimations[music.id] = {
+    // 🔄 Configura animações iniciais para cada música
+    useEffect(() => {
+        likedSongs.forEach((item) => {
+            if (!textAnimations[item.id]) {
+                textAnimations[item.id] = {
                     title: new Animated.Value(0),
                     author: new Animated.Value(0),
                 };
             }
+
+            startTextAnimation(item.id); // 🔥 Inicia animação automaticamente
         });
-    }, [likedSongs, setLikedSongs]);
+    }, [likedSongs]);
 
-    // Inicia a animação do texto
+    // ▶ Inicia animação do texto (infinita)
     const startTextAnimation = (id) => {
-        if (textAnimations[id]) {
-            textAnimations[id].title.stopAnimation();
-            textAnimations[id].author.stopAnimation();
+        if (!textAnimations[id]) return; // ⛔ Evita erro se a animação não existir ainda
 
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(textAnimations[id].title, {
-                        toValue: -150,
-                        duration: 4000,
-                        easing: Easing.linear,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(textAnimations[id].title, {
-                        toValue: 0,
-                        duration: 0,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ).start();
+        textAnimations[id].title.setValue(0);
+        textAnimations[id].author.setValue(0);
 
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(textAnimations[id].author, {
-                        toValue: -150,
-                        duration: 4000,
-                        easing: Easing.linear,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(textAnimations[id].author, {
-                        toValue: 0,
-                        duration: 0,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ).start();
-        }
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(textAnimations[id].title, {
+                    toValue: -150,
+                    duration: 4000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(textAnimations[id].title, {
+                    toValue: 0,
+                    duration: 0,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(textAnimations[id].author, {
+                    toValue: -150,
+                    duration: 4000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(textAnimations[id].author, {
+                    toValue: 0,
+                    duration: 0,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
     };
 
-    // Alterna entre tocar/pausar música
-    const togglePlay = (item) => {
-        if (!item?.id) return;
+    // 🎵 Alterna entre tocar/pausar a música
+    const togglePlay = async (item) => {
+        if (!item?.id || !item.url) return;
 
         if (currentMusicId === item.id) {
-            setIsPlaying(!isPlaying);
+            if (sound) {
+                if (isPlaying) {
+                    await sound.pauseAsync();
+                } else {
+                    await sound.playAsync();
+                }
+                setIsPlaying(!isPlaying);
+            }
         } else {
+            if (sound) {
+                await sound.unloadAsync();
+            }
+
+            const { sound: newSound } = await Audio.Sound.createAsync(
+                { uri: item.url },
+                { shouldPlay: true }
+            );
+
+            setSound(newSound);
             setCurrentMusicId(item.id);
             setPlayerMusic(item);
             setIsPlaying(true);
-            startTextAnimation(item.id);
         }
     };
 
-    // Renderiza o card de cada música
     const renderItem = ({ item }) => {
-        if (!item?.id) return null; // Evita erro de undefined
+        if (!item?.id) return null;
 
+        // ⚠ Garante que as animações foram inicializadas corretamente
         if (!textAnimations[item.id]) {
             textAnimations[item.id] = {
                 title: new Animated.Value(0),
                 author: new Animated.Value(0),
             };
+            startTextAnimation(item.id);
         }
 
         return (
             <CardMusic
-                item={item} // Passa corretamente o item
+                item={item}
                 togglePlay={togglePlay}
                 isPlaying={currentMusicId === item.id && isPlaying}
                 animation={textAnimations[item.id]}
@@ -121,9 +132,9 @@ export default () => {
         <View style={styles.container}>
             <FlatList
                 style={styles.flatList}
-                data={likedSongs} // Garante que likedSongs seja um array
+                data={likedSongs}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()} // Garante uma chave única como string
+                keyExtractor={(item) => item.id.toString()}
             />
         </View>
     );

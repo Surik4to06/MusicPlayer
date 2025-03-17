@@ -9,6 +9,7 @@ import { styles } from "./styles";
 import MyMusics from "../MyMusics";
 import Likeds from "../Likeds";
 import { useNavigation } from "@react-navigation/native";
+import { signOut } from "firebase/auth";
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -26,14 +27,22 @@ export default () => {
                 </View> */}
 
                     <View style={styles.containerButtonsHeader}>
-                        <Ionicons name="settings-outline" color='#FFF' size={30} />
+                        <Pressable onPress={() => {
+                            signOut(Auth);
+
+                            navigation.reset({
+                                routes: [{name: 'Login'}]
+                            });
+                        }}>
+                            <Ionicons name="settings-outline" color='#FFF' size={30} />
+                        </Pressable>
                     </View>
                 </View>
 
                 {/* Dados do usuário */}
                 <View style={styles.containerTerd}>
                     <Pressable>
-                        <Image source={require('../../../assets/animeTeste.jpg')} style={{ width: 150, height: 150, borderRadius: 999 }} />
+                        <Image source={{ uri: Auth.currentUser.photoURL }} style={{ width: 150, height: 150, borderRadius: 999 }} />
                     </Pressable>
 
                     <Text style={styles.username}>{Auth.currentUser.displayName}</Text>
@@ -65,11 +74,19 @@ export default () => {
             </View>
 
             {/* Conteudo do perfil... */}
-
-            <Tab.Navigator style={{marginBottom: -55}}>
+            <Tab.Navigator screenOptions={{
+                tabBarLabelStyle: {
+                    color: '#FFF'
+                },
+                tabBarStyle:
+                {
+                    backgroundColor: '#000',
+                }
+            }}>
                 <Tab.Screen name="MyMusics" component={MyMusics} />
                 <Tab.Screen name="Liked" component={Likeds} />
             </Tab.Navigator>
         </View>
     );
 }
+
