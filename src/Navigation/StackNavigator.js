@@ -6,6 +6,8 @@ import Register from "../Screens/Register";
 import Preload from "../Screens/Preload";
 import EditProfile from "../Screens/EditProfile";
 import PlayerModal from "../Components/playerModal";
+import ProfileScreen from "../Components/profileScreen";
+import TopTab from "./TopTab";
 
 export default () => {
 
@@ -20,9 +22,11 @@ export default () => {
             <Stack.Screen name='Preload' component={Preload} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Register" component={Register} />
-            <Stack.Screen name="Home" component={BottomTab} />
+            <Stack.Screen name="Main" component={BottomTab} />
             <Stack.Screen name="EditProfile" component={EditProfile} />
             <Stack.Screen name="PlayerMusic" component={PlayerModal} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+            <Stack.Screen name="TopTab" component={TopTab} />
         </Stack.Navigator>
     );
 }

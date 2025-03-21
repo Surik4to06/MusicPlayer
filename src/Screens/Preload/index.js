@@ -14,7 +14,7 @@ export default () => {
     onAuthStateChanged(Auth, (user) => {
         if (user) {
             navigation.reset({
-                routes: [{name: 'Home'}]
+                routes: [{name: 'Main'}]
             });
         } else {
             navigation.reset({

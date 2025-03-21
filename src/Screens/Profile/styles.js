@@ -3,53 +3,59 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#9c9c9c",
+  },
+  btnSettings: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    width: 50,
+    height: 50,
+    backgroundColor: '#212121',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 999,
   },
   containerSecond: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    marginBottom: 30,
   },
   containerTerd: {
     flex: 1,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    zIndex: 10,
+    backgroundColor: 'trrensparent',
+    marginTop: 20,
   },
-  containerButtonsHeader: {
-    backgroundColor: '#353535',
-    height: 45,
-    width: 45,
-    borderRadius: 999,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  containerHeader: {
-    marginBottom: 10,
-    padding: 10,
-    width: '100%',
-    justifyContent: 'flex-end',
-    flexDirection: 'row',
+  wallpaper: {
+    backgroundColor: '#96969696', 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    zIndex: 1,
   },
   username: {
-    fontSize: 20, 
+    fontSize: 23,
     marginTop: 10,
+    color: "#FFF",
   },
   numDados: {
     fontSize: 18,
     textAlign: 'center',
+    color: '#FFF',
   },
   textDados: {
     fontSize: 18,
+    color: '#FFF',
   },
   btnProfile: {
     backgroundColor: '#353535',
     padding: 10,
     borderRadius: 15,
-    // marginBottom:,
   },
   btnProfileText: {
     fontSize: 18,
@@ -58,9 +64,13 @@ export const styles = StyleSheet.create({
   containerTopTab: {
     flex: 1,
   },
-  sheetContent: { 
-    flex: 1, 
-    backgroundColor: '#212121', 
-    padding: 10,
-  },
+  profileContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#000',
+    zIndex: 2,
+},
+
 });

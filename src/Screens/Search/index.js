@@ -14,8 +14,6 @@ import SearchMusic from '../SearchMusics';
 const Tab = createMaterialTopTabNavigator();
 
 export default () => {
-  // const API_URL = "https://api.deezer.com/search?q=";
-
   const { setMusicList, setUsersList } = useContext(AuthContext);
 
   const [searchText, setSearchText] = useState('');
@@ -24,12 +22,12 @@ export default () => {
     const getResults = async () => {
       let query = searchText.trim() ? encodeURIComponent(searchText) : "top hits";
       let response;
-  
+
       try {
-        // 🔍 Buscar Músicas
+        //API de musica q provevelmente vai mudar, porquê só ta pegando 50 sec ou 30 sec das musicas, e isso é da propria API
         response = await fetch(`https://api.deezer.com/search?q=${query}`);
         let data = await response.json();
-  
+
         if (!data || !data.data) {
           setMusicList([]);
         } else {
@@ -43,7 +41,7 @@ export default () => {
           }));
           setMusicList(formattedResults);
         }
-  
+
         // Buscar Usuários
         const usersResults = await searchUsers(searchText);
         setUsersList(usersResults);
@@ -51,25 +49,30 @@ export default () => {
         console.error("Erro na busca:", error);
       }
     };
-  
+
     getResults();
   }, [searchText]);
 
   const searchUsers = async (searchTerm) => {
     if (!searchTerm.trim()) return []; // Se a pesquisa estiver vazia, retorna uma lista vazia
-  
+
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("displayName", ">=", searchTerm));
-  
+      const q = query(
+        usersRef,
+        where("displayName", ">=", searchTerm),
+        where("displayName", "<=", searchTerm + "\uf8ff") // "\uf8ff" é um caractere especial que garante que todos os nomes comecem com `searchTerm`
+      );
+
       const querySnapshot = await getDocs(q);
       const users = [];
-  
+
       querySnapshot.forEach((doc) => {
         users.push({ id: doc.id, ...doc.data() });
       });
-  
+
       return users;
+
     } catch (error) {
       console.error("Erro ao buscar usuários:", error);
       return [];

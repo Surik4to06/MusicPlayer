@@ -1,12 +1,11 @@
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
-import { SafeAreaView, StatusBar, TextInput, Text, Pressable, View, StyleSheet, ActivityIndicator } from "react-native";
+import { SafeAreaView, StatusBar, TextInput, Text, Pressable, View, ActivityIndicator, Image } from "react-native";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { Ionicons } from '@expo/vector-icons';
 import { setDoc, doc } from "firebase/firestore";
 
 import { Auth, db } from "../../Services/firebaseConfig";
-import { AuthContext } from "../../Context/AuthContext";
+import { styles } from "./styles";
 
 export default () => {
     const navigation = useNavigation();
@@ -41,8 +40,10 @@ export default () => {
                     displayName: username,
                     photo: "https://i.pinimg.com/236x/21/9e/ae/219eaea67aafa864db091919ce3f5d82.jpg",
                     description: "",
-                    followers: 0,
-                    following: 0,
+                    followers: [],
+                    following: [],
+                    followersCount: 0,
+                    followingCount: 0,
                     publicacoes: [],
                     top10Musicas: [],
                     wallpaper: null,
@@ -52,7 +53,7 @@ export default () => {
                 console.log("✅ Usuário registrado e salvo no Firestore!");
 
                 navigation.reset({
-                    routes: [{ name: 'Home' }]
+                    routes: [{ name: 'Main' }]
                 });
                 setLoading(false);
 
@@ -80,7 +81,7 @@ export default () => {
             <StatusBar backgroundColor={'#000000'} />
             {/* <Image style={styles.logo} source={require('../../assets/logoRagnarok.jpg')}/> */}
 
-            <Ionicons name='play-circle' color='#000' size={140} style={{ backgroundColor: '#FFF', borderRadius: 999 }} />
+            <Image source={require('../../../assets/logo.jpg')} style={styles.logo} />
 
             <View style={{
                 marginTop: 40,
@@ -131,57 +132,3 @@ export default () => {
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#0A0509',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    logo: {
-        width: 384,
-        height: 300,
-    },
-    input: {
-        borderRadius: 99999,
-        paddingLeft: 20,
-        fontSize: 18,
-        width: 350,
-        height: 50,
-        backgroundColor: '#FFFFFF',
-        color: 'skyblue',
-    },
-    btnCadastrar: {
-        marginTop: 30,
-        backgroundColor: 'skyblue',
-        width: 350,
-        height: 50,
-        borderRadius: 99999,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    btnCadastrarText: {
-        color: '#FFFFFF',
-        fontSize: 28,
-        textTransform: 'uppercase',
-        fontFamily: 'god-of-war',
-    },
-    linkLogin: {
-        marginTop: 20,
-        justifyContent: 'center',
-        display: "flex",
-        flexDirection: 'row',
-        width: 300,
-        alignItems: 'center',
-    },
-    linkLoginTextEntrar: {
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        fontSize: 18,
-    },
-    linkLoginText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-    }
-});

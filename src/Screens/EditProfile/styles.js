@@ -28,4 +28,18 @@ export const styles = StyleSheet.create({
         fontSize: 18,
         marginBottom: 5,
     },
+    btnSave: {
+        padding: 10,
+        backgroundColor: 'skyblue',
+        width: '90%',
+        height: 70,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 30,
+        borderRadius: 9999,
+    },
+    btnSaveText: {
+        fontSize: 25,
+        color: '#FFFFFF',
+    },
 });

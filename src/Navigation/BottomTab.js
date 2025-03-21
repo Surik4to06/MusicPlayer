@@ -1,74 +1,85 @@
-import React from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
 
 import Home from "../Screens/Home";
 import Profile from "../Screens/Profile";
-import TopTab from "./TopTab";
+import Friends from "../Screens/Friends";
 import Search from "../Screens/Search";
+import { db } from "../Services/firebaseConfig";
+import { collection, onSnapshot } from "firebase/firestore";
+import { AuthContext } from "../Context/AuthContext";
+
+const Tab = createBottomTabNavigator();
 
 export default () => {
+    const {totalUnreadMessages} = useContext(AuthContext);
+    const [unreadFriendsCount, setUnreadFriendsCount] = useState(null);
 
-    const Tab = createBottomTabNavigator();
+    useEffect(() => {
+        const fetchUnreadFriends = () => {
+            setUnreadFriendsCount(totalUnreadMessages);
+        };
 
-    return(
-        <Tab.Navigator screenOptions={{headerShown: false}}>
+        fetchUnreadFriends();
+    }, [totalUnreadMessages]);
+
+    return (
+        <Tab.Navigator screenOptions={{ headerShown: false }}>
             <Tab.Screen 
                 name="Home" 
                 component={Home} 
                 options={{
-                    tabBarIcon: ({ focused, color }) => {
-                        if (focused) {
-                            
-                            return (<Ionicons name="home" color={color} size={28} />)
-
-                        } 
-                        
-                        return (<Ionicons name="home-outline" color={color} size={28} />)
-                    },
-                }} />
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons 
+                            name={focused ? "home" : "home-outline"} 
+                            color={color} 
+                            size={28} 
+                        />
+                    ),
+                }} 
+            />
             <Tab.Screen 
                 name="Friends" 
-                component={TopTab} 
                 options={{
-                    tabBarIcon: ({ focused, color }) => {
-                        if (focused) {
-                            
-                            return (<Ionicons name="people" color={color} size={28} />)
-
-                        } 
-                        
-                        return (<Ionicons name="people-outline" color={color} size={28} />)
-                    },
-                }} />
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons 
+                            name={focused ? "people" : "people-outline"} 
+                            color={color} 
+                            size={28} 
+                        />
+                    ),
+                    tabBarBadge: unreadFriendsCount > 0 ? unreadFriendsCount : null, // Atualiza a badge
+                }}
+            >
+                {() => <Friends setUnreadFriendsCount={unreadFriendsCount} />}
+            </Tab.Screen>
             <Tab.Screen 
                 name="Search" 
                 component={Search} 
                 options={{
-                    tabBarIcon: ({ focused, color }) => {
-                        if (focused) {
-                            
-                            return (<Ionicons name="search" color={color} size={28} />)
-
-                        } 
-                        
-                        return (<Ionicons name="search-outline" color={color} size={28} />)
-                    },
-                }} />
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons 
+                            name={focused ? "search" : "search-outline"} 
+                            color={color} 
+                            size={28} 
+                        />
+                    ),
+                }} 
+            />
             <Tab.Screen 
                 name="Profile" 
                 component={Profile} 
                 options={{
-                    tabBarIcon: ({ focused, color }) => {
-                        if (focused) {
-                            
-                            return (<Ionicons name="person" color={color} size={28} />)
-
-                        } 
-                        
-                        return (<Ionicons name="person-outline" color={color} size={28} />)
-                    },
-                }} />
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons 
+                            name={focused ? "person" : "person-outline"} 
+                            color={color} 
+                            size={28} 
+                        />
+                    ),
+                }} 
+            />
         </Tab.Navigator>
     );
-}
+};

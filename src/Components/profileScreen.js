@@ -5,10 +5,9 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 
-import { Auth, db } from "../../Services/firebaseConfig";
-import { styles } from "./styles";
-import MyMusics from "../MyMusics";
-import Likeds from "../Likeds";
+import { Auth, db } from "../Services/firebaseConfig";
+import MyMusics from "../Screens/MyMusics";
+import Likeds from "../Screens/Likeds";
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -86,13 +85,18 @@ const ProfileScreen = ({ route }) => {
     return (
         <View style={styles.container}>
             <View style={styles.containerSecond}>
+                {/* Botão voltar para a pesquisa */}
                 <Pressable
-                    style={styles.btnSettings}
-                    onPress={() => navigation.navigate('EditProfile')}>
-                    <Ionicons name="settings-outline" color='#FFF' size={30} />
+                    style={styles.btnBack}
+                    onPress={() => {
+                        navigation.reset({
+                            routes: [{name: 'Main'}]
+                        });
+                    }}>
+                    <Ionicons style={{ marginLeft: -3 }} name="chevron-back-outline" color='#FFF' size={30} />
                 </Pressable>
 
-                <Image source={{ uri: userData.wallpaper }} style={[StyleSheet.absoluteFillObject, styles.wallpaper]} />
+                <Image source={{ uri: userData.wallpaper }} style={[StyleSheet.absoluteFillObject, { backgroundColor: '#96969696', position: 'absolute', top: 0, left: 0, zIndex: 1 }]} />
 
                 <View style={styles.containerTerd}>
                     <Pressable>
@@ -130,5 +134,74 @@ const ProfileScreen = ({ route }) => {
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: "#9c9c9c",
+    },
+    btnBack: {
+        position: 'absolute',
+        left: 10,
+        top: 10,
+        width: 50,
+        height: 50,
+        backgroundColor: '#212121',
+        zIndex: 999,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 999,
+    },
+    containerSecond: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    containerTerd: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        zIndex: 10,
+        backgroundColor: 'transparent',
+        marginTop: 20
+    },
+    username: {
+        fontSize: 23,
+        marginTop: 10,
+        color: "#FFF",
+    },
+    numDados: {
+        fontSize: 18,
+        textAlign: 'center',
+        color: '#FFF',
+    },
+    textDados: {
+        fontSize: 18,
+        color: '#FFF',
+    },
+    btnProfile: {
+        backgroundColor: '#353535',
+        padding: 10,
+        borderRadius: 15,
+    },
+    btnProfileText: {
+        fontSize: 18,
+        color: '#FFF',
+    },
+    containerTopTab: {
+        flex: 1,
+    },
+    profileContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#000',
+        zIndex: 2,
+    },
+
+});
+
 
 export default ProfileScreen;
