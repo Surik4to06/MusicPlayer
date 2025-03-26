@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, collection, query, where } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 
 import { Auth, db } from "../Services/firebaseConfig";
@@ -19,6 +19,27 @@ const ProfileScreen = ({ route }) => {
 
     const [userData, setUserData] = useState({});
     const [isFollowing, setIsFollowing] = useState(false);
+
+    const [userMusics, setUserMusics] = useState([]);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        // Referência para a coleção "musics" filtrando pelo "authorId"
+        const musicsRef = collection(db, "musics");
+        const q = query(musicsRef, where("authorId", "==", userId));
+
+        // Listener para atualizar em tempo real
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const musics = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setUserMusics(musics);
+        });
+
+        return () => unsubscribe();
+    }, [userId]);
 
     useEffect(() => {
         // Referência do documento do usuário no Firestore
@@ -128,7 +149,7 @@ const ProfileScreen = ({ route }) => {
                 tabBarLabelStyle: { color: '#FFF' },
                 tabBarStyle: { backgroundColor: '#000' }
             }}>
-                <Tab.Screen name="MyMusics" component={MyMusics} />
+                <Tab.Screen name="MyMusics" initialParams={userId} component={MyMusics} />
                 <Tab.Screen name="Liked" component={Likeds} />
             </Tab.Navigator>
         </View>

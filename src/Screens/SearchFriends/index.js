@@ -10,14 +10,14 @@ export default function SearchFriends() {
     const navigation = useNavigation();
     const { usersList } = useContext(AuthContext);
 
-    const [showProfile, setShowProfile] = useState(null); // Inicializa como `null`
+    const [showProfile, setShowProfile] = useState(null); 
 
     const goToProfile = (userId) => {
         navigation.navigate("ProfileScreen", { userId }); // Passa o ID do usuário ao navegar
     };
 
     const renderItem = ({ item }) => (
-        <Pressable style={{ height: 100, width: '100%' }} onPress={() => setShowProfile(item)}>
+        <Pressable style={{ height: 100, width: '100%', marginBottom: 10, }} onPress={() => setShowProfile(item)}>
             <Image source={{ uri: item.wallpaper }} style={[StyleSheet.absoluteFillObject, { borderRadius: 20, backgroundColor: "#ccc" }]} />
             <View style={{ flexDirection: "row", alignItems: "center", padding: 10 }}>
                 <Image source={{ uri: item.photo }} style={{ width: 80, height: 80, borderRadius: 999 }} />
@@ -27,7 +27,7 @@ export default function SearchFriends() {
     );
 
     return (
-        <View style={{ flex: 1, padding: 15 }}>
+        <View style={{ flex: 1, padding: 15, backgroundColor: '#353535', }}>
             <FlatList
                 data={usersList}
                 keyExtractor={(item) => item.id}

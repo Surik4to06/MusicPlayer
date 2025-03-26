@@ -3,24 +3,28 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#212121',
+  },
+  loading: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50% -50%)',
   },
   amountMessages: {
     position: 'absolute',
     right: 10,
     top: 10,
-    backgroundColor: '#212121',
-    color: '#FFF',
+    backgroundColor: '#FFF',
+    color: '#000',
     borderRadius: 999,
     zIndex: 1,
     fontSize: 16,
     padding: 5,
   },
   containerCard: {
-    backgroundColor: '#c7c7c7',
     padding: 10,
     justifyContent: 'center',
-    marginBottom: 10,
   },
   profileImage: {
     width: 60,
@@ -29,17 +33,27 @@ export const styles = StyleSheet.create({
     marginRight: 20,
   },
   username: {
-    color: '#212121',
+    color: '#FFF',
     fontSize: 20,
     marginTop: 5,
   },
   lastMessage: {
     marginTop: 5,
+    color: '#ccc',
   },
   lineContainer: {
-    borderColor: '#212121',
+    borderColor: '#ccc',
     borderWidth: 2,
-    borderRadius: 999, 
+    borderRadius: 999,
     marginTop: 10,
   },
+  searchInput: {
+    width: '100%',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    marginBottom: 15,
+    backgroundColor: '#f9f9f9',
+  }
 });

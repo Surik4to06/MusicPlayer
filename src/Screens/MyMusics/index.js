@@ -1,93 +1,68 @@
-import React from "react";
-import { View, Text, Image, FlatList } from "react-native";
-
+import React, { useEffect, useState } from "react";
+import { View, Text, Image, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { Auth, db } from "../../Services/firebaseConfig";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { styles } from "./styles";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 export default () => {
+    const [userMusics, setUserMusics] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const numColumns = 3
+    const navigation = useNavigation();
+    const route = useRoute();
 
+    // Obtém o userId da rota ou usa o do usuário logado
+    const userId = route.params?.userId || Auth.currentUser?.uid;
 
-    const userMusics = [
-        {
-            id: '1',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '2',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '3',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '4',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '5',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '6',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '7',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '8',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '9',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '10',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '11',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '12',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '13',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '14',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '15',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-        {
-            id: '16',
-            photo: require('../../../assets/animeTeste.jpg'),
-        },
-    ]
+    useEffect(() => {
+        if (userId) {
+            fetchUserMusics();
+        }
+    }, [userId]);
 
-    return(
-        
+    const fetchUserMusics = async () => {
+        setLoading(true);
+        try {
+            // Verifica se userId está definido antes de buscar
+            if (!userId) {
+                console.error("Erro: userId indefinido.");
+                setLoading(false);
+                return;
+            }
+
+            const q = query(collection(db, "musics"), where("uidAuthor", "==", userId));
+            const querySnapshot = await getDocs(q);
+            const musics = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            setUserMusics(musics);
+        } catch (error) {
+            console.error("Erro ao buscar músicas do usuário:", error);
+        }
+        setLoading(false);
+    };
+
+    return (
         <View style={styles.container}>
-            <FlatList
-                data={userMusics}
-                keyExtractor={(item) => item.id}
-                numColumns={numColumns}
-                renderItem={({item}) => (
-                    <Image source={item.photo} style={styles.videos}/>
-                )}/>
-                
-            
-            {/* <Text>Usuário nn possui nenhuma musica</Text> */}
+            {loading ? (
+                <ActivityIndicator size="large" color="#FFF" />
+            ) : userMusics.length > 0 ? (
+                <FlatList
+                    data={userMusics}
+                    keyExtractor={(item) => item.id}
+                    numColumns={3}
+                    renderItem={({ item }) => (
+                        <Pressable onPress={() => navigation.navigate('PlayerMusic', { playerMusic: item })}>
+                            <Image source={{ uri: item.thumbnail }} style={styles.videos} />
+                        </Pressable>
+                    )}
+                />
+            ) : (
+                <Text style={styles.emptyText}>Usuário não possui nenhuma música</Text>
+            )}
         </View>
     );
-}
+};

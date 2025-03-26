@@ -10,6 +10,7 @@ function AuthProvider({ children }) {
     const [teste, setTeste] = useState([]); // Armazena os IDs das músicas curtidas
     const [usersList, setUsersList] = useState([]);
     const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
+    const [friendsList, setFriendsList] = useState([]);
 
     const togglePlay = async (item) => {
         if (currentSound) {
@@ -37,7 +38,7 @@ function AuthProvider({ children }) {
 
 
     return (
-        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, likedSongs, setLikedSongs, teste, setTeste, usersList, setUsersList, totalUnreadMessages, setTotalUnreadMessages }}>
+        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, likedSongs, setLikedSongs, teste, setTeste, usersList, setUsersList, totalUnreadMessages, setTotalUnreadMessages, friendsList, setFriendsList }}>
             {children}
         </AuthContext.Provider>
     )

@@ -50,7 +50,6 @@ export default () => {
                 };
 
                 await setDoc(doc(db, "users", user.uid), userData);
-                console.log("✅ Usuário registrado e salvo no Firestore!");
 
                 navigation.reset({
                     routes: [{ name: 'Main' }]

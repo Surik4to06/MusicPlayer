@@ -1,52 +1,61 @@
 import React, { useContext, useEffect, useState } from "react";
-import { FlatList, Pressable, View, Image, Text } from "react-native";
-import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore";
-import { Auth, db } from "../../Services/firebaseConfig";
+import { FlatList, Pressable, View, Image, Text, ActivityIndicator, TextInput } from "react-native";
+import { getDoc, doc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
+
+import { Auth, db } from "../../Services/firebaseConfig";
 import markMessagesAsRead from "../../Services/markMessagesAsRead"; 
-import { styles } from "./styles";
 import { AuthContext } from "../../Context/AuthContext";
 
+import { styles } from "./styles";
+
 export default () => {
-
-    const {setTotalUnreadMessages} = useContext(AuthContext);
-
-    const [friendsList, setFriendsList] = useState([]);
+    const { setTotalUnreadMessages, friendsList, setFriendsList } = useContext(AuthContext);
     const [unreadMessages, setUnreadMessages] = useState({});
+    const [isLoading, setLoading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');  // Estado para armazenar o texto de pesquisa
+    const [filteredFriends, setFilteredFriends] = useState(friendsList);  // Estado para armazenar amigos filtrados
+
     const currentUser = Auth.currentUser;
     const navigation = useNavigation();
 
     useEffect(() => {
-        const fetchFriends = async () => {
-            try {
-                const userRef = doc(db, "users", currentUser.uid);
-                const userSnap = await getDoc(userRef);
-                if (!userSnap.exists()) return;
+        setLoading(true);
+        const userRef = doc(db, "users", currentUser.uid);
 
-                const following = userSnap.data().following || [];
-                let mutualFriends = [];
+        // Ouve mudanças na lista de amigos em tempo real
+        const unsubscribe = onSnapshot(userRef, async (userSnap) => {
+            if (!userSnap.exists()) return;
+            
+            const following = userSnap.data().following || [];
+            let mutualFriends = [];
 
-                for (const friend of following) {
-                    const isMutual = await checkMutualFollow(currentUser.uid, friend.uid);
-                    if (isMutual) {
-                        mutualFriends.push(friend);
-                    }
+            for (const friend of following) {
+                const isMutual = await checkMutualFollow(currentUser.uid, friend.uid);
+                if (isMutual) {
+                    mutualFriends.push(friend);
                 }
-
-                setFriendsList(mutualFriends);
-            } catch (error) {
-                console.error("Erro ao buscar amigos:", error);
             }
-        };
 
-        fetchFriends();
+            setFriendsList(mutualFriends);
+            setFilteredFriends(mutualFriends);  // Atualiza a lista de amigos filtrados
+            setLoading(false);
+        });
+
+        return () => unsubscribe(); // Remove o listener ao desmontar
     }, []);
 
     useEffect(() => {
         if (friendsList.length > 0) {
-            fetchAllUnreadMessages(friendsList);
+            listenForUnreadMessages(friendsList);
         }
     }, [friendsList]);
+
+    useEffect(() => {
+        // Atualiza o número total de conversas não lidas
+        const totalUnreadFriends = Object.values(unreadMessages).filter(count => count > 0).length;
+        setTotalUnreadMessages(totalUnreadFriends);
+    }, [unreadMessages]);
 
     const checkMutualFollow = async (userId1, userId2) => {
         try {
@@ -60,52 +69,28 @@ export default () => {
         }
     };
 
-    const fetchUnreadMessages = async (chatId, friendId) => {
-        try {
-            if (!chatId || !friendId) return 0;
-
+    const listenForUnreadMessages = (friends) => {
+        friends.forEach((friend) => {
+            const chatId = [currentUser.uid, friend.uid].sort().join("_");
             const messagesRef = collection(db, `chats/${chatId}/messages`);
-            const q = query(
-                messagesRef,
-                where("to", "==", currentUser.uid),
-                where("senderId", "==", friendId),
-                where("isRead", "==", false)
-            );
+            const q = query(messagesRef, where("to", "==", currentUser.uid), where("isRead", "==", false));
 
-            const querySnapshot = await getDocs(q);
-            return querySnapshot.size;
-        } catch (error) {
-            console.error("Erro ao buscar mensagens não lidas:", error);
-            return 0;
-        }
-    };
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                setUnreadMessages(prevState => ({
+                    ...prevState,
+                    [friend.uid]: snapshot.size,
+                }));
+            });
 
-    const fetchAllUnreadMessages = async (friends) => {
-        const newUnreadMessages = {};
-        let totalUnreadFriends = 0;
-
-        await Promise.all(
-            friends.map(async (friend) => {
-                const friendId = friend.uid;
-                const chatId = [currentUser.uid, friendId].sort().join("_");
-                if (!friendId) return;
-
-                const count = await fetchUnreadMessages(chatId, friendId);
-                newUnreadMessages[friendId] = count;
-                if (count > 0) totalUnreadFriends += 1;
-            })
-        );
-
-        setUnreadMessages(newUnreadMessages);
-        setTotalUnreadMessages(totalUnreadFriends);
+            return unsubscribe;
+        });
     };
 
     const handleOpenChat = async (friend) => {
         const chatId = [currentUser.uid, friend.uid].sort().join("_");
         await markMessagesAsRead(chatId, friend.uid, currentUser.uid);
-        
+
         setUnreadMessages((prevState) => ({ ...prevState, [friend.uid]: 0 }));
-        setTotalUnreadMessages((prevTotal) => prevTotal - (unreadMessages[friend.uid] || 0));
     };
 
     const renderItem = ({ item }) => {
@@ -137,10 +122,33 @@ export default () => {
         );
     };
 
+    // Função para filtrar amigos baseado no nome
+    const handleSearch = (text) => {
+        setSearchQuery(text);
+        if (text === '') {
+            setFilteredFriends(friendsList);
+        } else {
+            const filtered = friendsList.filter(friend => 
+                friend.displayName.toLowerCase().includes(text.toLowerCase())
+            );
+            setFilteredFriends(filtered);
+        }
+    };
+
     return (
         <View style={styles.container}>
+            {/* Campo de Pesquisa */}
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Pesquise por amigos..."
+                value={searchQuery}
+                onChangeText={handleSearch}
+            />
+            {/* Se a lista ainda estiver carregando */}
+            {isLoading && <ActivityIndicator style={styles.loading} color='#FFF' size="large" />}
+
             <FlatList
-                data={friendsList}
+                data={filteredFriends} 
                 keyExtractor={(item) => item.uid}
                 renderItem={renderItem}
             />

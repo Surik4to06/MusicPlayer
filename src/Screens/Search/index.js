@@ -92,7 +92,13 @@ export default () => {
         />
       </View>
 
-      <Tab.Navigator>
+      <Tab.Navigator screenOptions={{
+        tabBarStyle: {
+          backgroundColor: '#000',
+        },
+        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#FFF',
+      }}>
         <Tab.Screen name="Users" component={SearchFriends} />
         <Tab.Screen name="Musics" component={SearchMusic} />
       </Tab.Navigator>

@@ -4,11 +4,12 @@ import { Pressable, View, Image, StyleSheet, Text, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import Input from '../../Components/textInput';
 import { styles } from "./styles";
 
-import { Auth, db } from "../../Services/firebaseConfig";
+import { Auth, db, storage } from "../../Services/firebaseConfig";
 import { signOut, updateProfile } from "firebase/auth";
 
 export default () => {
@@ -42,27 +43,35 @@ export default () => {
         fetchUserProfile();
     }, [uid]);
 
-    const pickImage = async (setImageState) => {
+    // Função para fazer upload da imagem para o Firebase Storage
+    const uploadImageAsync = async (uri, path) => {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, blob);
+        return await getDownloadURL(storageRef);
+    };
+
+    const pickImage = async (setImageState, path) => {
         let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             quality: 1,
         });
 
         if (!result.canceled) {
-            setImageState(result.assets[0].uri);
+            const uploadedUrl = await uploadImageAsync(result.assets[0].uri, path);
+            setImageState(uploadedUrl);
         }
     };
 
     const handleSave = async () => {
         try {
-            // Atualiza no Firebase Authentication
             await updateProfile(Auth.currentUser, {
                 displayName: username,
                 photoURL: photoUser,
             });
 
-            // Atualiza no Firestore
             const userRef = doc(db, "users", uid);
             await updateDoc(userRef, {
                 displayName: username,
@@ -71,8 +80,6 @@ export default () => {
                 wallpaper: wallpaper,
             });
 
-            setLoading(false);
-            // Redireciona de volta para a tela de perfil
             navigation.goBack();
         } catch (error) {
             Alert.alert("Erro", "Não foi possível salvar as alterações.");
@@ -95,7 +102,7 @@ export default () => {
                     <Ionicons style={{ marginLeft: -3 }} name="chevron-back" size={35} color='#FFF' />
                 </Pressable>
 
-                <Pressable style={styles.editWallpaper} onPress={() => pickImage(setWallpaper)}>
+                <Pressable style={styles.editWallpaper} onPress={() => pickImage(setWallpaper, `users/${uid}/wallpaper.jpg`)}>
                     <Ionicons name="create-outline" size={35} color='#FFF' />
                 </Pressable>
             </View>
@@ -103,44 +110,21 @@ export default () => {
             <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: -80 }} />
 
             <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-                <Pressable style={styles.borderPhoto} onPress={() => pickImage(setPhotoUser)}>
+                <Pressable style={styles.borderPhoto} onPress={() => pickImage(setPhotoUser, `users/${uid}/profile.jpg`)}>
                     <Image source={{ uri: photoUser }} style={{ width: 150, height: 150, borderRadius: 999 }} />
                     <Ionicons name="camera" size={35} color='#FFF' style={{ position: 'absolute', right: 5, bottom: 0 }} />
                 </Pressable>
             </View>
 
             <View style={{ flex: 1, alignItems: 'center' }}>
-                <View style={{ marginTop: 10, marginBottom: 10 }}>
-                    <Text style={styles.txt}>Nome</Text>
-                    <Input
-                        value={username}
-                        onChangeText={setUsername}
-                        placeholder="Digite o novo nome de usuário"
-                        placeholderTextColor="gray"
-                    />
-                </View>
+                <Text style={styles.txt}>Nome</Text>
+                <Input value={username} onChangeText={setUsername} placeholder="Digite o novo nome de usuário" placeholderTextColor="gray" />
 
-                <View style={{ marginTop: 10, marginBottom: 10 }}>
-                    <Text style={styles.txt}>Descrição</Text>
-                    <Input
-                        value={description}
-                        onChangeText={setDescription}
-                        placeholder="Descrição..."
-                        placeholderTextColor="gray"
-                    />
-                </View>
+                <Text style={styles.txt}>Descrição</Text>
+                <Input value={description} onChangeText={setDescription} placeholder="Descrição..." placeholderTextColor="gray" />
 
                 <Pressable onPress={handleSave} style={styles.btnSave}>
                     <Text style={styles.btnSaveText}>Salvar</Text>
-                </Pressable>
-
-                <Pressable style={[styles.btnSave, { backgroundColor: 'red' }]} onPress={() => {
-                    signOut(Auth);
-                    navigation.reset({
-                        routes: [{ name: 'Login' }]
-                    });
-                }}>
-                    <Text style={styles.btnSaveText}>Sair</Text>
                 </Pressable>
             </View>
         </View>

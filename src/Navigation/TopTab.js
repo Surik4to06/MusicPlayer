@@ -23,7 +23,7 @@ export default ({ route }) => {
         />
         <Tab.Screen 
           name="PlaylistFrinds" 
-          children={() => <PlaylistFrinds userId={userId} friendId={friendId} />} 
+          children={() => <PlaylistFrinds userId={userId} friendId={friendId} photo={photo} friendUsername={friendUsername} />} 
         />
       </Tab.Navigator>
     </View>

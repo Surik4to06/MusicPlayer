@@ -6,9 +6,8 @@ import Home from "../Screens/Home";
 import Profile from "../Screens/Profile";
 import Friends from "../Screens/Friends";
 import Search from "../Screens/Search";
-import { db } from "../Services/firebaseConfig";
-import { collection, onSnapshot } from "firebase/firestore";
 import { AuthContext } from "../Context/AuthContext";
+import Uploads from "../Screens/Uploads";
 
 const Tab = createBottomTabNavigator();
 
@@ -54,6 +53,19 @@ export default () => {
             >
                 {() => <Friends setUnreadFriendsCount={unreadFriendsCount} />}
             </Tab.Screen>
+            <Tab.Screen 
+                name="Criar" 
+                component={Uploads} 
+                options={{
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons 
+                            name={focused ? "add" : "add-outline"} 
+                            color={color} 
+                            size={28} 
+                        />
+                    ),
+                }} 
+            />
             <Tab.Screen 
                 name="Search" 
                 component={Search} 

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         height: 90,
         padding: 3,
-        backgroundColor: '#212121',
+        backgroundColor: '#000',
         borderRadius: 45,
     },
     containerCard: {
