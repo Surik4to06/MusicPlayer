@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1, 
+    backgroundColor: '#000'
   },
   containerInput: {
     marginTop: 10,
@@ -20,6 +21,7 @@ inputText: {
     fontSize: 17,
     borderWidth: 1,
     borderColor: 'gray',
+    backgroundColor: 'gray'
 },
 containerIcon: {
     justifyContent: 'center',

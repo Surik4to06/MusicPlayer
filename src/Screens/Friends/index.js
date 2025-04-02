@@ -20,30 +20,49 @@ export default () => {
     const navigation = useNavigation();
 
     useEffect(() => {
+        if (!currentUser) return;
         setLoading(true);
-        const userRef = doc(db, "users", currentUser.uid);
 
+        const userRef = doc(db, "users", currentUser.uid);
+    
         // Ouve mudanças na lista de amigos em tempo real
         const unsubscribe = onSnapshot(userRef, async (userSnap) => {
             if (!userSnap.exists()) return;
-            
+    
             const following = userSnap.data().following || [];
             let mutualFriends = [];
-
+    
             for (const friend of following) {
                 const isMutual = await checkMutualFollow(currentUser.uid, friend.uid);
                 if (isMutual) {
                     mutualFriends.push(friend);
                 }
             }
-
-            setFriendsList(mutualFriends);
-            setFilteredFriends(mutualFriends);  // Atualiza a lista de amigos filtrados
+    
+            // Escutar mudanças nos perfis dos amigos em tempo real
+            const updatedFriends = await Promise.all(mutualFriends.map(async (friend) => {
+                return new Promise((resolve) => {
+                    const friendRef = doc(db, "users", friend.uid);
+                    const unsubscribeFriend = onSnapshot(friendRef, (friendSnap) => {
+                        if (friendSnap.exists()) {
+                            resolve({ ...friend, ...friendSnap.data() });
+                        } else {
+                            resolve(friend);
+                        }
+                    });
+    
+                    return () => unsubscribeFriend(); // Remove listener ao desmontar
+                });
+            }));
+    
+            setFriendsList(updatedFriends);
+            setFilteredFriends(updatedFriends);
             setLoading(false);
         });
-
-        return () => unsubscribe(); // Remove o listener ao desmontar
+    
+        return () => unsubscribe();
     }, []);
+    
 
     useEffect(() => {
         if (friendsList.length > 0) {
@@ -140,7 +159,7 @@ export default () => {
             {/* Campo de Pesquisa */}
             <TextInput
                 style={styles.searchInput}
-                placeholder="Pesquise por amigos..."
+                placeholder="Filtrar amigos..."
                 value={searchQuery}
                 onChangeText={handleSearch}
             />

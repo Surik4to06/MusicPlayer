@@ -24,7 +24,21 @@ export default () => {
     }, [totalUnreadMessages]);
 
     return (
-        <Tab.Navigator screenOptions={{ headerShown: false }}>
+        <Tab.Navigator 
+            screenOptions={{ 
+                headerShown: false,
+                tabBarStyle: {
+                    backgroundColor: '#212121',
+                    borderTopWidth: 0,
+                    borderTopRightRadius: 20,
+                    borderTopLeftRadius: 20,
+                    overflow: 'hidden',
+                    position: 'absolute',
+                    padding: 15,
+                    height: 60,
+                }
+             }}
+            >
             <Tab.Screen 
                 name="Home" 
                 component={Home} 

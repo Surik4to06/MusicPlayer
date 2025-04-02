@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { Auth, db } from "../../Services/firebaseConfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { styles } from "./styles";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
@@ -21,10 +21,10 @@ export default () => {
         }
     }, [userId]);
 
-    const fetchUserMusics = async () => {
+    const fetchUserMusics = () => {
         setLoading(true);
+
         try {
-            // Verifica se userId está definido antes de buscar
             if (!userId) {
                 console.error("Erro: userId indefinido.");
                 setLoading(false);
@@ -32,18 +32,27 @@ export default () => {
             }
 
             const q = query(collection(db, "musics"), where("uidAuthor", "==", userId));
-            const querySnapshot = await getDocs(q);
-            const musics = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
 
-            setUserMusics(musics);
+            // Escuta mudanças em tempo real
+            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                const musics = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+
+                setUserMusics(musics);
+                setLoading(false);
+            });
+
+            // Retorna a função para cancelar a escuta ao desmontar o componente
+            return () => unsubscribe();
+
         } catch (error) {
             console.error("Erro ao buscar músicas do usuário:", error);
+            setLoading(false);
         }
-        setLoading(false);
     };
+
 
     return (
         <View style={styles.container}>
@@ -51,6 +60,7 @@ export default () => {
                 <ActivityIndicator size="large" color="#FFF" />
             ) : userMusics.length > 0 ? (
                 <FlatList
+                    contentContainerStyle={{ paddingBottom: 53, paddingTop: 3 }}
                     data={userMusics}
                     keyExtractor={(item) => item.id}
                     numColumns={3}

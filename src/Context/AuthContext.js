@@ -6,7 +6,6 @@ function AuthProvider({ children }) {
 
     const [musicsList, setMusicList] = useState([]);
     const [playerMusic, setPlayerMusic] = useState(null);
-    const [likedSongs, setLikedSongs] = useState([]); // Armazena os IDs das músicas curtidas
     const [teste, setTeste] = useState([]); // Armazena os IDs das músicas curtidas
     const [usersList, setUsersList] = useState([]);
     const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
@@ -38,7 +37,7 @@ function AuthProvider({ children }) {
 
 
     return (
-        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, likedSongs, setLikedSongs, teste, setTeste, usersList, setUsersList, totalUnreadMessages, setTotalUnreadMessages, friendsList, setFriendsList }}>
+        <AuthContext.Provider value={{ musicsList, setMusicList, playerMusic, setPlayerMusic, togglePlay, teste, setTeste, usersList, setUsersList, totalUnreadMessages, setTotalUnreadMessages, friendsList, setFriendsList }}>
             {children}
         </AuthContext.Provider>
     )

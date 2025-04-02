@@ -7,7 +7,6 @@ import { useNavigation } from "@react-navigation/native";
 
 import { Auth, db } from "../Services/firebaseConfig";
 import MyMusics from "../Screens/MyMusics";
-import Likeds from "../Screens/Likeds";
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -150,7 +149,6 @@ const ProfileScreen = ({ route }) => {
                 tabBarStyle: { backgroundColor: '#000' }
             }}>
                 <Tab.Screen name="MyMusics" initialParams={userId} component={MyMusics} />
-                <Tab.Screen name="Liked" component={Likeds} />
             </Tab.Navigator>
         </View>
     );

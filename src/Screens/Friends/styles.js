@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212121',
+    backgroundColor: '#000',
   },
   loading: {
     position: 'absolute',
@@ -48,12 +48,15 @@ export const styles = StyleSheet.create({
     marginTop: 10,
   },
   searchInput: {
-    width: '100%',
+    width: '95%',
     padding: 10,
+    paddingLeft: 20,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 5,
+    borderRadius: 999,
     marginBottom: 15,
     backgroundColor: '#f9f9f9',
+    marginLeft: 10,
+    fontSize: 14,
   }
 });

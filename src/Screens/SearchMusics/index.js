@@ -91,6 +91,16 @@ const MusicList = () => {
             setCurrentMusicId(item.id);
             setPosition(0);
             setDuration(status.durationMillis || 1);
+
+            // setTimeout(async () => {
+            //     if (currentSound) {
+            //         await currentSound.stopAsync();
+            //         await currentSound.unloadAsync();
+            //         setCurrentSound(null);
+            //         setCurrentMusicId(null);
+            //     }
+            //   }, item.duration * 1000);
+
         } catch (error) {
             console.error("Erro ao tocar música:", error);
         }
@@ -108,11 +118,11 @@ const MusicList = () => {
                 item={item}
                 setPlayerMusic={setPlayerMusic}
                 togglePlay={togglePlay}
-                isPlaying={isPlaying}
-                animation={animation}
+                isPlaying={currentMusicId === item.id.toString()}
             />
         );
     };
+    console.log(musicsList)
 
     return (
         <View style={styles.container}>
@@ -120,7 +130,7 @@ const MusicList = () => {
                 style={styles.flatList}
                 data={musicsList}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
             />
         </View>
     );

@@ -156,7 +156,8 @@ const ProfileScreen = ({ route }) => {
             <Modal
                 visible={showSettings}
                 transparent={true}>
-                <Pressable style={styles.modalBackground} />
+                <Pressable style={styles.modalBackground}
+                onPress={() => setShowSettings(false)} />
 
                 <View style={styles.modal}>
                     <Pressable onPress={() => {

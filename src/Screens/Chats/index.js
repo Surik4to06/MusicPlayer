@@ -70,6 +70,18 @@ export default ({ friendId, photo, friendUsername }) => {
         }
     };
 
+    const Music = ({ item }) => {
+        return (
+            <Pressable
+                onPress={() =>
+                    navigation.navigate('PlayerMusic', { playerMusic: item.music })}
+            >
+                <Image source={{ uri: item.music.thumbnail }} style={{ width: 200, height: 200, borderRadius: 10 }} />
+
+            </Pressable>
+        );
+    }
+
     const VideoMessage = ({ uri }) => {
         return (
             <Pressable
@@ -176,6 +188,7 @@ export default ({ friendId, photo, friendUsername }) => {
                     {item.type === 'text' && <Text style={{ fontSize: 18 }}>{item.text}</Text>}
                     {item.type === 'image' && <PhotoMessage uri={item.mediaUrl} />}
                     {item.type === 'video' && <VideoMessage uri={item.mediaUrl} />}
+                    {item.type === 'music' && <Music item={item} />}
                 </View>
             </View>
         ) : (
@@ -185,6 +198,7 @@ export default ({ friendId, photo, friendUsername }) => {
                     {item.type === 'text' && <Text style={{ fontSize: 18 }}>{item.text}</Text>}
                     {item.type === 'image' && <PhotoMessage uri={item.mediaUrl} />}
                     {item.type === 'video' && <VideoMessage uri={item.mediaUrl} />}
+                    {item.type === 'music' && <Music item={item} />}
                 </View>
             </View>
         )
@@ -263,8 +277,8 @@ export default ({ friendId, photo, friendUsername }) => {
             >
                 <Pressable onPress={() => {
                     setShowPhoto(false)
-                    }}
-                    style={[{backgroundColor: "rgba(0, 0, 0, 0.8)"}, StyleSheet.absoluteFillObject]}/>
+                }}
+                    style={[{ backgroundColor: "rgba(0, 0, 0, 0.8)" }, StyleSheet.absoluteFillObject]} />
                 <Image source={{ uri: uriPhoto }} style={styles.modalPhoto} />
             </Modal>
         </View>

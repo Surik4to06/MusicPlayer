@@ -3,6 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, Image, Alert, PermissionsAndroi
 import * as MediaLibrary from "expo-media-library";
 import { useNavigation } from "@react-navigation/native";
 
+import { styles } from './styles';
+
 export default function AudioList() {
     const [audioFiles, setAudioFiles] = useState([]);
     const navigation = useNavigation();
@@ -18,7 +20,7 @@ export default function AudioList() {
         })();
     }, []);
 
-    // 🛑 Pede permissão corretamente (Android 13+ precisa de permissão extra)
+    // Pede permissão corretamente (Android 13+ precisa de permissão extra)
     async function requestStoragePermission() {
         if (Platform.OS === "android") {
             const { granted } = await MediaLibrary.requestPermissionsAsync();
@@ -35,7 +37,7 @@ export default function AudioList() {
         return true;
     }
 
-    // 🔍 Busca todas as músicas com metadados
+    // Busca todas as músicas com metadados
     const fetchAllAudioFiles = async () => {
         try {
             let allAudio = [];
@@ -54,7 +56,7 @@ export default function AudioList() {
                 hasNextPage = media.hasNextPage;
             }
 
-            // 🏷️ Buscar metadados (autor e capa)
+            // Buscar metadados (autor e capa)
             const detailedAudio = await Promise.all(
                 allAudio.map(async (item) => {
                     const info = await MediaLibrary.getAssetInfoAsync(item.id);
@@ -76,8 +78,8 @@ export default function AudioList() {
     };
 
     return (
-        <View style={{ flex: 1, padding: 20 }}>
-            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+        <View style={styles.container}>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10, color: '#FFF' }}>
                 🎵 Músicas no Celular
             </Text>
             {audioFiles.length === 0 ? (
@@ -102,8 +104,8 @@ export default function AudioList() {
                             )}
 
                             <View style={{ marginLeft: 10 }}>
-                                <Text style={{ fontSize: 16, fontWeight: "bold" }}>{item.filename}</Text>
-                                <Text style={{ fontSize: 14, color: "#555" }}>{item.author}</Text>
+                                <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: "bold", color: '#FFF' }}>{item.filename}</Text>
+                                <Text style={{ fontSize: 14, color: "#ccc" }}>{item.author}</Text>
                             </View>
                         </TouchableOpacity>
                     )}

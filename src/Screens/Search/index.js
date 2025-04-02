@@ -32,7 +32,7 @@ export default () => {
           setMusicList([]);
         } else {
           const formattedResults = data.data.map(track => ({
-            id: track.id,
+            id: track.id.toString(),
             title: track.title,
             author: track.artist.name,
             thumbnail: track.album.cover_medium,
@@ -85,7 +85,8 @@ export default () => {
 
       <View style={styles.containerInput}>
         <TextInput
-          placeholder='Find new Friends and Sounds'
+          placeholder='Pesquisar por amigos ou músicas'
+          placeholderTextColor='#212121'
           value={searchText}
           onChangeText={setSearchText}
           style={styles.inputText}

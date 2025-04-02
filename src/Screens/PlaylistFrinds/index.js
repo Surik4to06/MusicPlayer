@@ -1,111 +1,79 @@
-import React, { useContext, useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList } from "react-native";
-import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import { View, Text, FlatList, Image, Pressable, TextInput, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { collection, query, where, getDocs, addDoc, onSnapshot } from "firebase/firestore";
 import { Auth, db } from "../../Services/firebaseConfig";
-import { styles } from "./styles";
-import { AuthContext } from "../../Context/AuthContext";
 
-export default ({ friendId, friendUsername }) => {
-    const { addSong } = useContext(AuthContext);
-    const [playlists, setPlaylists] = useState([]);
-    const [playlistName, setPlaylistName] = useState("");
-    const [newSong, setNewSong] = useState({ title: "", author: "", url: "" });
+export default function PlaylistsScreen({ friendId }) {
     const currentUser = Auth.currentUser;
+    const [playlists, setPlaylists] = useState([]);
+    const [newPlaylistName, setNewPlaylistName] = useState("");
 
+    // Acompanhamento em tempo real
     useEffect(() => {
-        const q = query(collection(db, "playlists"), where("members", "array-contains", currentUser.uid));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setPlaylists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // Certifique-se de que o friendId está correto
+        if (!friendId) {
+            console.log("Erro: friendId não está definido");
+            return;
+        }
+
+        const unsubscribe = onSnapshot(collection(db, "playlists"), (snapshot) => {
+            const playlistsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const filteredPlaylists = playlistsList.filter(playlist => 
+                playlist.members.includes(currentUser.uid) && playlist.members.includes(friendId) // Verifica se os dois estão na playlist
+            );
+            setPlaylists(filteredPlaylists);
         });
+
         return () => unsubscribe();
-    }, []);
+    }, [friendId]); // Certifique-se de que friendId é uma dependência do useEffect
 
     const createPlaylist = async () => {
-        if (!playlistName.trim()) return;
+        if (newPlaylistName.trim() === "") return;
         await addDoc(collection(db, "playlists"), {
-            name: playlistName,
-            members: [currentUser.uid, friendId],
+            name: newPlaylistName,
+            thumbnail: "https://via.placeholder.com/150", // Pode ser uma imagem padrão ou um upload
             songs: [],
+            members: [currentUser.uid] // Inicialmente, apenas o usuário criador
         });
-        setPlaylistName("");
+        setNewPlaylistName("");
     };
 
-    const addSongToPlaylist = async (playlistId) => {
-        if (!newSong.title || !newSong.url) return;
-        const playlistRef = doc(db, "playlists", playlistId);
-        await updateDoc(playlistRef, {
-            songs: arrayUnion({ ...newSong, addedBy: currentUser.uid })
-        });
-        setNewSong({ title: "", author: "", url: "" });
-    };
-
-    const removeSong = async (playlistId, song) => {
-        const playlistRef = doc(db, "playlists", playlistId);
-        await updateDoc(playlistRef, {
-            songs: arrayRemove(song),
-        });
-    };
+    const renderPlaylist = ({ item }) => (
+        <Pressable style={styles.playlistContainer}>
+            <Image source={{ uri: item.thumbnail }} style={styles.playlistImage} />
+            <Text style={styles.playlistName}>{item.name}</Text>
+        </Pressable>
+    );
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Playlists com {friendUsername}</Text>
-
-            <TextInput
-                placeholder="Nome da Playlist"
-                value={playlistName}
-                onChangeText={setPlaylistName}
-                style={styles.input}
-            />
-
-            <Pressable onPress={createPlaylist} style={styles.button}>
-                <Text style={styles.buttonText}>Criar Playlist</Text>
-            </Pressable>
-
             <FlatList
                 data={playlists}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.playlistCard}>
-                        <Text style={styles.playlistName}>{item.name}</Text>
-
-                        <TextInput
-                            placeholder="Nome da Música"
-                            value={newSong.title}
-                            onChangeText={(text) => setNewSong({ ...newSong, title: text })}
-                            style={styles.input}
-                        />
-                        <TextInput
-                            placeholder="Autor"
-                            value={newSong.author}
-                            onChangeText={(text) => setNewSong({ ...newSong, author: text })}
-                            style={styles.input}
-                        />
-                        <TextInput
-                            placeholder="URL da Música"
-                            value={newSong.url}
-                            onChangeText={(text) => setNewSong({ ...newSong, url: text })}
-                            style={styles.input}
-                        />
-
-                        <Pressable onPress={() => addSongToPlaylist(item.id)} style={styles.button}>
-                            <Text style={styles.buttonText}>Adicionar Música</Text>
-                        </Pressable>
-
-                        <FlatList
-                            data={item.songs}
-                            keyExtractor={(song) => song.url}
-                            renderItem={({ item: song }) => (
-                                <View style={styles.songItem}>
-                                    <Text>{song.title} - {song.author}</Text>
-                                    <Pressable onPress={() => removeSong(item.id, song)}>
-                                        <Text style={styles.removeButton}>❌</Text>
-                                    </Pressable>
-                                </View>
-                            )}
-                        />
-                    </View>
-                )}
+                renderItem={renderPlaylist}
             />
+            <View style={styles.footer}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Nova Playlist"
+                    value={newPlaylistName}
+                    onChangeText={setNewPlaylistName}
+                />
+                <Pressable style={styles.addButton} onPress={createPlaylist}>
+                    <Ionicons name="add" size={24} color="white" />
+                </Pressable>
+            </View>
         </View>
     );
-};
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: "#121212", padding: 10 },
+    playlistContainer: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
+    playlistImage: { width: 50, height: 50, borderRadius: 10, marginRight: 10 },
+    playlistName: { color: "#fff", fontSize: 18 },
+    footer: { flexDirection: "row", alignItems: "center", padding: 10, backgroundColor: "#1e1e1e" },
+    input: { flex: 1, backgroundColor: "#333", color: "#fff", padding: 10, borderRadius: 5 },
+    addButton: { marginLeft: 10, backgroundColor: "#1DB954", padding: 10, borderRadius: 5 }
+});

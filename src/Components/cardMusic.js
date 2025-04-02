@@ -1,28 +1,30 @@
 import React from "react";
-import { View, Text, Image, Pressable, Animated, StyleSheet } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
-const CardMusic = ({ item, togglePlay, isPlaying, animation }) => {
+const CardMusic = ({ item, togglePlay, isPlaying }) => {
     const navigation = useNavigation();
+
+    if (!item || !item.thumbnail || !item.title || !item.author) {
+        return null; // Se os dados estiverem incompletos, evita erro
+    }
 
     return (
         <Pressable
-            onPress={() => navigation.navigate('PlayerMusic', { playerMusic: item })}
+            onPress={() => {
+                if (item && item.title && item.author && item.thumbnail) {
+                    navigation.navigate('PlayerMusic', { playerMusic: item })
+                }
+            }}
             style={styles.cardMusic}
         >
             <View style={styles.containerCard}>
                 <View style={{ flexDirection: "row", padding: 10 }}>
                     <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
                     <View style={{ flex: 1, marginLeft: 10, overflow: "hidden" }}>
-
-                        {/* Animação para mover os textos da direita para a esquerda */}
-                        <Animated.View style={{ transform: [{ translateX: animation.title }] }}>
-                            <Text style={styles.title}>{item.title}</Text>
-                        </Animated.View>
-                        <Animated.View style={{ transform: [{ translateX: animation.author }] }}>
-                            <Text style={styles.author}>{item.author}</Text>
-                        </Animated.View>
+                        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.author} numberOfLines={1}>{item.author}</Text>
                     </View>
                 </View>
                 <Pressable onPress={() => togglePlay(item)} style={styles.btnPlayMusic}>
@@ -42,12 +44,12 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         height: 90,
         padding: 3,
-        backgroundColor: '#000',
+        backgroundColor: '#212121',
         borderRadius: 45,
     },
     containerCard: {
-        flexDirection: "column",
-        justifyContent: "center",
+        flexDirection: "row", // Corrigido para alinhar horizontalmente
+        justifyContent: "space-between",
         alignItems: "center",
     },
     thumbnail: {
@@ -57,7 +59,6 @@ const styles = StyleSheet.create({
     },
     title: {
         color: '#FFF',
-        marginBottom: 10,
         fontSize: 18,
         fontWeight: 'bold',
     },

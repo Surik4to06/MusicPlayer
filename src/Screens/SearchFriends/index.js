@@ -27,7 +27,7 @@ export default function SearchFriends() {
     );
 
     return (
-        <View style={{ flex: 1, padding: 15, backgroundColor: '#353535', }}>
+        <View style={{ flex: 1, padding: 15, backgroundColor: '#313131', }}>
             <FlatList
                 data={usersList}
                 keyExtractor={(item) => item.id}

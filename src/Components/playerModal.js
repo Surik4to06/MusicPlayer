@@ -1,25 +1,101 @@
 import React, { useContext, useEffect, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, BackHandler, Animated, FlatList } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, Image, Pressable, StyleSheet, BackHandler, Animated, FlatList, TextInput, Modal } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
+import { getDoc, updateDoc, doc, arrayUnion, onSnapshot, query, collection, where, addDoc, serverTimestamp, arrayRemove, setDoc, } from "firebase/firestore";
+
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+
 import { AuthContext } from "../Context/AuthContext"; // Importa o contexto
 import { Auth, db } from "../Services/firebaseConfig";
-import { getDoc, updateDoc, doc, arrayUnion, onSnapshot, query, collection, where } from "firebase/firestore";
 
-const PlayerMusic = ({ route, navigation }) => {
+const PlayerMusic = ({ route }) => {
     const { playerMusic } = route.params;
-    const { likedSongs, setLikedSongs } = useContext(AuthContext); // Obtém usuário e lista de curtidas
+
+    const navigation = useNavigation();
 
     const [sound, setSound] = useState(null);
+    const [likedSongs, setLikedSongs] = useState([]);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(1);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [bottomSheetHeight, setBottomSheetHeight] = useState(new Animated.Value(0));
+    const [bottomSheetHeightPlaylist, setBottomSheetHeightPlaylist] = useState(new Animated.Value(0));
+    const [bottomSheetHeightChat, setBottomSheetHeightChat] = useState(new Animated.Value(0));
     const [playlists, setPlaylists] = useState([]); // Para armazenar as playlists do usuário
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState(""); // Mensagem a ser enviada
+    const [showMusicList, setShowMusicList] = useState(false);
+    const [shareModalVisible, setShareModalVisible] = useState(false); // Controle do modal
+    const [friendsList, setFriendsList] = useState([]);
 
     // Verifica se a música está curtida pelo usuário atual
     const isLiked = likedSongs.some((song) => song.id === playerMusic.id && song.uid === Auth.currentUser.uid);
+
+    // Busca amigos para compartilhar a musica
+    const currentUser = Auth.currentUser;
+
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const userRef = doc(db, "users", currentUser.uid);
+
+        // Ouve mudanças na lista de amigos em tempo real
+        const unsubscribe = onSnapshot(userRef, async (userSnap) => {
+            if (!userSnap.exists()) return;
+
+            const following = userSnap.data().following || [];
+            let mutualFriends = [];
+
+            // Verifica quais amigos seguem de volta (amizade mútua)
+            for (const friend of following) {
+                const isMutual = await checkMutualFollow(currentUser.uid, friend.uid);
+                if (isMutual) {
+                    mutualFriends.push(friend);
+                }
+            }
+
+            // Busca dados atualizados dos amigos
+            const updatedFriends = await Promise.all(mutualFriends.map(async (friend) => {
+                const friendRef = doc(db, "users", friend.uid);
+                return new Promise((resolve) => {
+                    const unsubscribeFriend = onSnapshot(friendRef, (friendSnap) => {
+                        if (friendSnap.exists()) {
+                            resolve({ ...friend, ...friendSnap.data() });
+                        } else {
+                            resolve(friend); // Se o amigo for deletado, mantém os dados antigos
+                        }
+                    });
+
+                    return () => unsubscribeFriend(); // Remove listener ao desmontar
+                });
+            }));
+
+            setFriendsList(updatedFriends);
+        });
+
+        return () => unsubscribe(); // Remove o listener ao desmontar
+    }, []);
+
+    const checkMutualFollow = async (userId1, userId2) => {
+        try {
+            const user2Ref = doc(db, "users", userId2);
+            const user2Snap = await getDoc(user2Ref);
+            if (!user2Snap.exists()) return false;
+            return user2Snap.data().following?.some(following => following.uid === userId1) || false;
+        } catch (error) {
+            console.error("Erro ao verificar follow mútuo:", error);
+            return false;
+        }
+    };
+
+    useEffect(() => {
+        // Verificar as músicas curtidas em tempo real
+        const unsubscribe = checkLikedSongsRealTime();
+    
+        // Limpar o listener quando a tela for fechada
+        return () => unsubscribe();
+    }, []);
 
     // Carregar as playlists do usuário ao montar o componente
     useEffect(() => {
@@ -29,6 +105,18 @@ const PlayerMusic = ({ route, navigation }) => {
 
         return () => unsubscribe();
     }, []);
+
+    // Carregar chat da musica
+    useEffect(() => {
+        const chatRef = collection(db, "chats", playerMusic.id, "messages");
+        const q = query(chatRef);
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        });
+
+        return () => unsubscribe();
+    }, [playerMusic.id]);
 
     useEffect(() => {
         const loadMusic = async () => {
@@ -67,17 +155,91 @@ const PlayerMusic = ({ route, navigation }) => {
         return () => backHandler.remove();
     }, [sound]);
 
-    const toggleLikedSong = (song) => {
-        setLikedSongs((prevLikedSongs) => {
-            const songExists = prevLikedSongs.some((s) => s.id === song.id && s.uid === Auth.currentUser.uid);
+    const toggleLikedSong = async (song) => {
+        const userId = Auth.currentUser.uid;
+        const songRef = doc(db, "users", userId); // Referência ao usuário na coleção "users"
+    
+        const songExists = await checkIfSongLiked(song.id, userId);
 
+        try {
             if (songExists) {
-                return prevLikedSongs.filter((s) => !(s.id === song.id && s.uid === Auth.currentUser.uid));
+                // Remove a música da lista de curtidas
+                await updateDoc(songRef, {
+                    likedSongs: arrayRemove({ ...song, uid: userId }) // Remove a música da lista
+                });
             } else {
-                return [...prevLikedSongs, { ...song, uid: Auth.currentUser.uid }];
+                // Adiciona a música na lista de curtidas
+                await updateDoc(songRef, {
+                    likedSongs: arrayUnion({ ...song, uid: userId }) // Adiciona a música na lista
+                });
             }
-        });
+        } catch (error) {
+            console.error("Erro ao atualizar músicas curtidas:", error);
+        }
     };
+    
+    // Função para verificar se a música já foi curtida
+    const checkIfSongLiked = async (songId, userId) => {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        const likedSongs = userDoc.data()?.likedSongs || [];
+    
+        return likedSongs.some((s) => s.id === songId);
+    };
+
+    // verifica em tempo real se a musica foi curtida
+    const checkLikedSongsRealTime = () => {
+        const userId = Auth.currentUser.uid;
+        const userRef = doc(db, "users", userId);
+    
+        const unsubscribe = onSnapshot(userRef, (docSnapshot) => {
+            const likedSongs = docSnapshot.data()?.likedSongs || [];
+            setLikedSongs(likedSongs); // Atualiza o estado com as músicas curtidas em tempo real
+        });
+    
+        return unsubscribe; // Retorne a função de unsubscribe para quando não precisar mais ouvir as mudanças
+    };
+
+    // enviar mensagens 
+    const sendMessage = async () => {
+        if (!newMessage.trim()) return;
+
+        const chatRef = collection(db, "chats", playerMusic.id, "messages");
+
+        await addDoc(chatRef, {
+            text: newMessage,
+            sender: Auth.currentUser.displayName,
+            senderUid: Auth.currentUser.uid,
+            senderPhoto: Auth.currentUser.photoURL,
+            timestamp: serverTimestamp(),
+        });
+
+        setNewMessage(""); // Limpa o campo após enviar
+    };
+
+    const handleSendMusic = async (musicData, friendId) => {
+        const chatId = [Auth.currentUser.uid, friendId].sort().join("_");
+        if (!musicData) return;
+
+        const message = {
+            senderId: Auth.currentUser.uid,
+            to: friendId,
+            type: "music",
+            timestamp: serverTimestamp(),
+            isRead: false,
+            music: {
+                id: musicData.id,
+                title: musicData.title,
+                author: musicData.author,
+                thumbnail: musicData.thumbnail,
+                url: musicData.url,
+            }
+        };
+
+        const messagesRef = collection(db, `chats/${chatId}/messages`);
+        await addDoc(messagesRef, message);
+    };
+
+
 
     const updateStatus = (status) => {
         if (status.isLoaded) {
@@ -98,11 +260,19 @@ const PlayerMusic = ({ route, navigation }) => {
         }
     };
 
-    const toggleBottomSheet = () => {
-        Animated.timing(bottomSheetHeight, {
-            toValue: bottomSheetHeight._value === 0 ? 500 : 0,  // Altere o valor 350 para a altura desejada
+    const toggleBottomSheetPlaylist = () => {
+        Animated.timing(bottomSheetHeightPlaylist, {
+            toValue: bottomSheetHeightPlaylist._value === 0 ? 500 : 0,
             duration: 300,
             useNativeDriver: false, // Usa a animação nativa para melhorar o desempenho
+        }).start();
+    };
+
+    const toggleBottomSheetChat = () => {
+        Animated.timing(bottomSheetHeightChat, {
+            toValue: bottomSheetHeightChat._value === 0 ? 500 : 0,
+            duration: 300,
+            useNativeDriver: false,
         }).start();
     };
 
@@ -111,38 +281,35 @@ const PlayerMusic = ({ route, navigation }) => {
         if (!playerMusic.id) return;
 
         const playlistRef = doc(db, "playlists", playlistId);
-        
-        try {
-            const playlistDoc = await getDoc(playlistRef);
-            if (!playlistDoc.exists()) {
-                console.error("Playlist não encontrada!");
-                return;
-            }
+        const playlistDoc = await getDoc(playlistRef);
 
-            const playlistData = playlistDoc.data();
-            const songExists = playlistData.songs && playlistData.songs.some((song) => song.id === playerMusic.id);
+        if (!playlistDoc.exists()) {
+            console.error("Playlist não encontrada!");
+            return;
+        }
 
-            if (songExists) {
-                // Remover a música da playlist
-                await updateDoc(playlistRef, {
-                    songs: playlistData.songs.filter((song) => song.id !== playerMusic.id)
-                });
-            } else {
-                // Adicionar a música na playlist
-                await updateDoc(playlistRef, {
-                    songs: arrayUnion({ ...playerMusic, addedBy: Auth.currentUser.displayName })
-                });
-            }
-        } catch (error) {
-            console.error("Erro ao atualizar playlist:", error);
+        const playlistData = playlistDoc.data();
+        const songExists = playlistData.songs.some((song) => song.id === playerMusic.id);
+
+        if (songExists) {
+            // Remover a música da playlist
+            await updateDoc(playlistRef, {
+                songs: playlistData.songs.filter((song) => song.id !== playerMusic.id)
+            });
+        } else {
+            // Adicionar a música na playlist
+            await updateDoc(playlistRef, {
+                songs: arrayUnion({ ...playerMusic, addedBy: Auth.currentUser.displayName })
+            });
         }
     };
 
-    const renderItem = ({ item }) => {
+    const renderItemPlaylist = ({ item }) => {
         const songInPlaylist = item.songs.some((song) => song.id === playerMusic.id);
-    
+
         return (
             <Pressable onPress={() => addSongToPlaylist(item.id)} style={styles.playlistItem}>
+                <Image source={{ uri: item.thumbnail }} style={styles.playlistThumbnail} />
                 <Text style={styles.playlistName}>{item.name}</Text>
                 <View style={styles.addButton}>
                     <Ionicons
@@ -156,6 +323,16 @@ const PlayerMusic = ({ route, navigation }) => {
             </Pressable>
         );
     };
+
+    const renderItemChat = ({ item }) => (
+        <View style={styles.messageContainer}>
+            <Image source={{ uri: item.senderPhoto }} style={styles.userPhoto} />
+            <View style={styles.messageBox}>
+                <Text style={styles.senderName}>{item.sender}</Text>
+                <Text style={styles.messageText}>{item.text}</Text>
+            </View>
+        </View>
+    );
 
     return (
         <View style={styles.container}>
@@ -184,11 +361,11 @@ const PlayerMusic = ({ route, navigation }) => {
                             />
                         </Pressable>
 
-                        <Pressable>
+                        <Pressable onPress={toggleBottomSheetChat}>
                             <Ionicons name="chatbubble-ellipses-outline" size={37} color='#FFF' />
                         </Pressable>
 
-                        <Pressable onPress={toggleBottomSheet}>
+                        <Pressable onPress={toggleBottomSheetPlaylist}>
                             <Ionicons name="musical-notes-outline" size={37} color='#FFF' />
                         </Pressable>
                     </View>
@@ -214,10 +391,19 @@ const PlayerMusic = ({ route, navigation }) => {
                         <Ionicons name="pause" size={50} color="#FFF" />
                     ) : (<Ionicons style={{ marginLeft: 3 }} name="play" size={50} color="#FFF" />)}
                 </Pressable>
+
+                {/* boões da parte de baixo do player */}
+                <Pressable style={[styles.btnListMusics, { right: 'none', left: 20 }]} onPress={() => setShowMusicList(true)}>
+                    <Ionicons name="list-outline" color="#FFF" size={40} />
+                </Pressable>
+                <Pressable style={styles.btnListMusics} onPress={() => setShareModalVisible(true)}>
+                    <Ionicons name="arrow-redo-outline" color="#FFF" size={40} />
+                </Pressable>
             </View>
 
-            <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]}>
-                <Pressable onPress={toggleBottomSheet} style={styles.close}>
+            {/* Bottom */}
+            <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeightPlaylist }]}>
+                <Pressable onPress={toggleBottomSheetPlaylist} style={styles.close}>
                     <Ionicons name="close" size={37} color="#FFF" />
                 </Pressable>
 
@@ -226,9 +412,114 @@ const PlayerMusic = ({ route, navigation }) => {
                 <FlatList
                     data={playlists}
                     keyExtractor={(item) => item.id}
-                    renderItem={renderItem}
+                    renderItem={renderItemPlaylist}
                 />
             </Animated.View>
+
+            <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeightChat }]}>
+                <Pressable onPress={toggleBottomSheetChat} style={styles.close}>
+                    <Ionicons name="close" size={37} color="#FFF" />
+                </Pressable>
+
+                <Text style={styles.bottomSheetText}>Chat</Text>
+
+                <FlatList
+                    data={messages}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItemChat}
+                    inverted={true}
+                />
+                <View style={styles.sendMessageContainer}>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Digite sua mensagem..."
+                        placeholderTextColor="#ccc"
+                        value={newMessage}
+                        onChangeText={setNewMessage}
+                    />
+                    <Pressable onPress={sendMessage} style={styles.sendButton}>
+                        <Ionicons name="send" size={24} color="#FFF" />
+                    </Pressable>
+                </View>
+
+            </Animated.View>
+
+            <Modal visible={showMusicList} transparent={true}>
+                <Pressable style={styles.modalBackground}>
+                    <View style={styles.modal}>
+
+                        <Pressable style={styles.closeModal} onPress={() => setShowMusicList(false)}>
+                            <Ionicons name="close" size={34} color='#000' />
+                        </Pressable>
+
+                        <Text>{playlists.name}</Text>
+
+                        <FlatList
+                            data={playlists}
+                            keyExtractor={(item) => item.id}
+                            renderItem={({ item }) => {
+                                // Verifica se há pelo menos uma música na playlist
+                                const firstSong = item.songs && item.songs.length > 0 ? item.songs[0] : null;
+
+                                if (!firstSong) {
+                                    return <Text style={styles.modalText}>Nenhuma música na playlist</Text>;
+                                }
+
+                                return (
+                                    <View style={styles.modalItem}>
+                                        <Image source={{ uri: firstSong.thumbnail }} style={styles.modalThumbnail} />
+                                        <View>
+                                            <Text style={styles.modalTitle}>{firstSong.title}</Text>
+                                            <Text style={styles.modalAuthor}>{firstSong.author}</Text>
+                                        </View>
+                                    </View>
+                                );
+                            }}
+                        />
+                    </View>
+                </Pressable>
+            </Modal>
+
+            {/* Modal para Exibir Amigos que o Seguem de Volta */}
+            <Modal
+                visible={shareModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShareModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+
+                        <Pressable
+                            style={styles.closeButtonText}
+                            onPress={() => setShareModalVisible(false)}
+                        >
+                            <Ionicons name="close" color="#FFF" size={40} />
+                        </Pressable>
+
+                        <FlatList
+                            data={friendsList}
+                            keyExtractor={(item) => item.uid}
+                            horizontal={true}
+                            renderItem={({ item }) => (
+                                <View style={styles.friendItem}>
+                                    <Pressable 
+                                        style={{justifyContent: 'center', alignItems: 'center'}}
+                                        onPress={() => handleSendMusic(playerMusic, item.uid)}>
+                                        <Image
+                                            source={{ uri: item.photo }} // Supondo que o link da foto do perfil esteja nesse formato
+                                            style={styles.friendImage}
+
+                                        />
+                                        <Text style={{color: 'gray'}}>{item.displayName}</Text>
+                                    </Pressable>
+                                </View>
+                            )}
+                        />
+                    </View>
+                </View>
+            </Modal>
+
         </View>
     );
 };
@@ -302,6 +593,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    btnListMusics: {
+        position: 'absolute',
+        right: 20,
+        bottom: 5
+    },
     bottomSheet: {
         position: "absolute",
         bottom: 0,
@@ -350,7 +646,110 @@ const styles = StyleSheet.create({
     addButtonText: {
         fontSize: 16,
         color: '#FFF',
-    }
+    },
+    messageContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 10,
+        marginBottom: 5,
+    },
+    userPhoto: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 10,
+    },
+    messageBox: {
+        backgroundColor: "#444",
+        padding: 10,
+        borderRadius: 8,
+        maxWidth: "80%",
+    },
+    senderName: {
+        color: "#FFF",
+        fontWeight: "bold",
+        fontSize: 14,
+    },
+    messageText: {
+        color: "#FFF",
+        fontSize: 16,
+    },
+    sendMessageContainer: {
+        flexDirection: 'row',
+        width: '100%',
+        paddingHorizontal: 10,
+        marginBottom: 10,
+    },
+    input: {
+        height: 45,
+        borderColor: "#555",
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        color: "#FFF",
+        backgroundColor: "#333",
+        flex: 1,
+    },
+    sendButton: {
+        marginLeft: 10,
+        padding: 10,
+        backgroundColor: '#444',
+        borderRadius: 8,
+    },
+    closeModal: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        zIndex: 999999,
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    modal: {
+        flex: 1,
+        zIndex: 999999,
+        backgroundColor: '#ccc',
+        padding: 15,
+        width: '100%',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+    },
+    modalContent: {
+        position: 'absolute',
+        bottom: 0,
+        width: '100%',
+        height: '60%',
+        backgroundColor: "#212121",
+        padding: 20,
+        borderTopRightRadius: 20,
+        borderTopLeftRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    friendItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginVertical: 10,
+    },
+    friendImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 9999,
+        marginRight: 10,
+    },
+    closeButtonText: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+
+    },
 });
 
 export default PlayerMusic;
