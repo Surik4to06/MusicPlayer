@@ -6,7 +6,6 @@ export const styles = StyleSheet.create({
         backgroundColor: "#000",
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: -40,
     },
     thumbnail: {
         backgroundColor: "gray",
@@ -23,17 +22,27 @@ export const styles = StyleSheet.create({
         zIndex: 999,
     },
     input: {
-        backgroundColor: '#353535',
+        backgroundColor: 'transparent',
         width: '80%',
-        marginTop: 5,
         borderRadius: 10,
         color: '#FFF',
         paddingLeft: 10,
-        fontSize: 18, 
+        fontSize: 22, 
+        height: 57,
+        padding: 5,
+        borderWidth: 1,
+        borderColor: 'gray',
+        borderRadius: 15,
+    },
+    authorName: {
+        color: 'gray',
+        fontSize: 18,
+        textAlign: 'left',
+        width: '75%',
+        marginTop: 7,
     },
     containerBtn: {
         width: '80%',
-        marginTop: 20,
     },
     containerBtnUpload: {
         justifyContent: 'center', 
@@ -41,7 +50,6 @@ export const styles = StyleSheet.create({
         backgroundColor: '#353535',
         padding: 20,
         borderRadius: 9999,
-        marginTop: 20,
     },
     uploadBtn: {
         color: '#FFF',

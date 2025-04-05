@@ -1,14 +1,15 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, Pressable, StyleSheet, BackHandler, Animated, FlatList, TextInput, Modal } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
-import { getDoc, updateDoc, doc, arrayUnion, onSnapshot, query, collection, where, addDoc, serverTimestamp, arrayRemove, setDoc, } from "firebase/firestore";
+import { getDoc, updateDoc, doc, arrayUnion, onSnapshot, query, collection, where, addDoc, serverTimestamp, arrayRemove } from "firebase/firestore";
 
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { AuthContext } from "../Context/AuthContext"; // Importa o contexto
-import { Auth, db } from "../Services/firebaseConfig";
+import { Auth, db } from "../../Services/firebaseConfig";
+import { downloadMusic } from '../../Services/downloadMusics';
+import { styles } from './styles';
 
 const PlayerMusic = ({ route }) => {
     const { playerMusic } = route.params;
@@ -28,6 +29,7 @@ const PlayerMusic = ({ route }) => {
     const [showMusicList, setShowMusicList] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false); // Controle do modal
     const [friendsList, setFriendsList] = useState([]);
+    const [musicSettings, setMusicSettings] = useState(false);
 
     // Verifica se a música está curtida pelo usuário atual
     const isLiked = likedSongs.some((song) => song.id === playerMusic.id && song.uid === Auth.currentUser.uid);
@@ -92,7 +94,7 @@ const PlayerMusic = ({ route }) => {
     useEffect(() => {
         // Verificar as músicas curtidas em tempo real
         const unsubscribe = checkLikedSongsRealTime();
-    
+
         // Limpar o listener quando a tela for fechada
         return () => unsubscribe();
     }, []);
@@ -158,7 +160,7 @@ const PlayerMusic = ({ route }) => {
     const toggleLikedSong = async (song) => {
         const userId = Auth.currentUser.uid;
         const songRef = doc(db, "users", userId); // Referência ao usuário na coleção "users"
-    
+
         const songExists = await checkIfSongLiked(song.id, userId);
 
         try {
@@ -177,12 +179,12 @@ const PlayerMusic = ({ route }) => {
             console.error("Erro ao atualizar músicas curtidas:", error);
         }
     };
-    
+
     // Função para verificar se a música já foi curtida
     const checkIfSongLiked = async (songId, userId) => {
         const userDoc = await getDoc(doc(db, "users", userId));
         const likedSongs = userDoc.data()?.likedSongs || [];
-    
+
         return likedSongs.some((s) => s.id === songId);
     };
 
@@ -190,12 +192,12 @@ const PlayerMusic = ({ route }) => {
     const checkLikedSongsRealTime = () => {
         const userId = Auth.currentUser.uid;
         const userRef = doc(db, "users", userId);
-    
+
         const unsubscribe = onSnapshot(userRef, (docSnapshot) => {
             const likedSongs = docSnapshot.data()?.likedSongs || [];
             setLikedSongs(likedSongs); // Atualiza o estado com as músicas curtidas em tempo real
         });
-    
+
         return unsubscribe; // Retorne a função de unsubscribe para quando não precisar mais ouvir as mudanças
     };
 
@@ -309,17 +311,25 @@ const PlayerMusic = ({ route }) => {
 
         return (
             <Pressable onPress={() => addSongToPlaylist(item.id)} style={styles.playlistItem}>
-                <Image source={{ uri: item.thumbnail }} style={styles.playlistThumbnail} />
-                <Text style={styles.playlistName}>{item.name}</Text>
-                <View style={styles.addButton}>
-                    <Ionicons
-                        name={songInPlaylist ? "remove-circle-outline" : "add-circle-outline"}
-                        size={28}
-                        color={songInPlaylist ? 'red' : 'lightgreen'}
-                        style={{ marginRight: 5 }}
-                    />
-                    <Text style={styles.addButtonText}>{songInPlaylist ? "Remover música" : "Adicionar música"}</Text>
-                </View>
+
+                    {item.thumbnail === null ?
+                        <Image source={require('../../../assets/musica.png')} style={styles.playlistThumbnail} />
+                        :
+                        <Image source={{ uri: item.thumbnail }} style={styles.playlistThumbnail} />
+                    }
+                    <View style={{marginLeft: 5}}>
+
+                        <Text numberOfLines={1} style={styles.playlistName}>{item.name}</Text>
+                        <View style={styles.addButton}>
+                            <Ionicons
+                                name={songInPlaylist ? "remove-circle-outline" : "add-circle-outline"}
+                                size={28}
+                                color={songInPlaylist ? 'red' : 'lightgreen'}
+                                style={{ marginRight: 5 }}
+                            />
+                            <Text style={styles.addButtonText}>{songInPlaylist ? "Remover música" : "Adicionar música"}</Text>
+                        </View>
+                    </View>
             </Pressable>
         );
     };
@@ -337,6 +347,8 @@ const PlayerMusic = ({ route }) => {
     return (
         <View style={styles.container}>
             <Image blurRadius={6} source={{ uri: playerMusic.thumbnail }} style={StyleSheet.absoluteFillObject} />
+
+            {/* Botão pra voltar a tela */}
             <Pressable style={styles.backButton} onPress={async () => {
                 navigation.goBack();
                 await sound.pauseAsync();
@@ -344,8 +356,21 @@ const PlayerMusic = ({ route }) => {
                 <Ionicons style={{ marginLeft: -3 }} name="chevron-back-outline" size={30} color="#FFF" />
             </Pressable>
 
+            {/* Botão pra editar a musica caso ela seja do usuario */}
+            {currentUser.uid === playerMusic.uidAuthor &&
+                <Pressable style={[styles.backButton, { right: 20, left: 'none' }]} onPress={async () => {
+                    setMusicSettings(true);
+                }}>
+                    <Ionicons style={{}} name="settings-outline" size={30} color="#FFF" />
+                </Pressable>
+            }
+
             <View style={styles.content}>
-                <Image source={{ uri: playerMusic.thumbnail }} style={styles.image} />
+                {playerMusic.thumbnail === null ?
+                    <Image source={require('../../../assets/musica.png')} style={[styles.image, { backgroundColor: '#BCBCBC' }]} />
+                    :
+                    <Image source={{ uri: playerMusic.thumbnail }} style={styles.image} />
+                }
                 <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 30 }}>
                     <View style={{ width: 290, gap: 10 }}>
                         <Text numberOfLines={2} style={styles.title}>{playerMusic.title}</Text>
@@ -393,8 +418,12 @@ const PlayerMusic = ({ route }) => {
                 </Pressable>
 
                 {/* boões da parte de baixo do player */}
-                <Pressable style={[styles.btnListMusics, { right: 'none', left: 20 }]} onPress={() => setShowMusicList(true)}>
-                    <Ionicons name="list-outline" color="#FFF" size={40} />
+                <Pressable style={[styles.btnListMusics, { right: 'none', left: 20 }]} onPress={() => {
+                    const musicUrl = playerMusic.url;
+                    const fileName = playerMusic.title; // Nome do arquivo salvo no celular
+                    downloadMusic(musicUrl, fileName);
+                }}>
+                    <Image source={require('../../../assets/downloads.png')} style={{ width: 30, height: 30 }} />
                 </Pressable>
                 <Pressable style={styles.btnListMusics} onPress={() => setShareModalVisible(true)}>
                     <Ionicons name="arrow-redo-outline" color="#FFF" size={40} />
@@ -444,42 +473,6 @@ const PlayerMusic = ({ route }) => {
 
             </Animated.View>
 
-            <Modal visible={showMusicList} transparent={true}>
-                <Pressable style={styles.modalBackground}>
-                    <View style={styles.modal}>
-
-                        <Pressable style={styles.closeModal} onPress={() => setShowMusicList(false)}>
-                            <Ionicons name="close" size={34} color='#000' />
-                        </Pressable>
-
-                        <Text>{playlists.name}</Text>
-
-                        <FlatList
-                            data={playlists}
-                            keyExtractor={(item) => item.id}
-                            renderItem={({ item }) => {
-                                // Verifica se há pelo menos uma música na playlist
-                                const firstSong = item.songs && item.songs.length > 0 ? item.songs[0] : null;
-
-                                if (!firstSong) {
-                                    return <Text style={styles.modalText}>Nenhuma música na playlist</Text>;
-                                }
-
-                                return (
-                                    <View style={styles.modalItem}>
-                                        <Image source={{ uri: firstSong.thumbnail }} style={styles.modalThumbnail} />
-                                        <View>
-                                            <Text style={styles.modalTitle}>{firstSong.title}</Text>
-                                            <Text style={styles.modalAuthor}>{firstSong.author}</Text>
-                                        </View>
-                                    </View>
-                                );
-                            }}
-                        />
-                    </View>
-                </Pressable>
-            </Modal>
-
             {/* Modal para Exibir Amigos que o Seguem de Volta */}
             <Modal
                 visible={shareModalVisible}
@@ -503,15 +496,15 @@ const PlayerMusic = ({ route }) => {
                             horizontal={true}
                             renderItem={({ item }) => (
                                 <View style={styles.friendItem}>
-                                    <Pressable 
-                                        style={{justifyContent: 'center', alignItems: 'center'}}
+                                    <Pressable
+                                        style={{ justifyContent: 'center', alignItems: 'center' }}
                                         onPress={() => handleSendMusic(playerMusic, item.uid)}>
                                         <Image
                                             source={{ uri: item.photo }} // Supondo que o link da foto do perfil esteja nesse formato
                                             style={styles.friendImage}
 
                                         />
-                                        <Text style={{color: 'gray'}}>{item.displayName}</Text>
+                                        <Text style={{ color: 'gray' }}>{item.displayName}</Text>
                                     </Pressable>
                                 </View>
                             )}
@@ -520,236 +513,24 @@ const PlayerMusic = ({ route }) => {
                 </View>
             </Modal>
 
+            {/* Modal para permitir edição da musica pelo usuario mesmo após ja publicar */}
+
+            <Modal
+                visible={musicSettings}
+                animationType="slide"
+                transparent={true}>
+
+                <Pressable
+                    style={styles.modalBackground}
+                    onPress={() => setMusicSettings(false)}>
+
+                    <View style={styles.modalSettings}><Text style={{ color: '#FFF' }}>teste pra saber onde sa porra ta kkkk</Text></View>
+
+                </Pressable>
+            </Modal>
+
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#000",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    backButton: {
-        position: "absolute",
-        top: 30,
-        left: 20,
-        zIndex: 1,
-        backgroundColor: '#212121',
-        height: 45,
-        width: 45,
-        borderRadius: 999,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    content: {
-        alignItems: "center",
-        paddingHorizontal: 20,
-        marginTop: 40,
-    },
-    image: {
-        width: 250,
-        height: 250,
-        borderRadius: 10,
-        marginBottom: 20
-    },
-    title: {
-        fontSize: 22,
-        color: "#FFF",
-        fontWeight: "bold",
-        textAlign: "left",
-    },
-    author: {
-        fontSize: 18,
-        color: "#CCC",
-        marginTop: 5,
-        textAlign: "left",
-    },
-    containerBtns: {
-        gap: 15,
-    },
-    sliderContainer: {
-        width: "90%",
-        marginTop: 40,
-        flexDirection: 'row',
-    },
-    slider: {
-        flex: 1,
-    },
-    timeText: {
-        color: "#FFF",
-        textAlign: "center",
-        fontSize: 18,
-    },
-    playButton: {
-        marginTop: 20,
-        backgroundColor: '#212121',
-        height: 70,
-        width: 70,
-        borderRadius: 999,
-        marginTop: 30,
-        marginBottom: -40,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    btnListMusics: {
-        position: 'absolute',
-        right: 20,
-        bottom: 5
-    },
-    bottomSheet: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: "#333",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        zIndex: 999,
-    },
-    close: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-    },
-    bottomSheetText: {
-        color: "#FFF",
-        fontSize: 20,
-        marginTop: 16,
-        marginBottom: 20,
-        textAlign: 'center',
-        marginLeft: 60,
-        marginRight: 60,
-    },
-    playlistItem: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#595959',
-        flex: 1,
-        marginBottom: 20,
-        borderRadius: 999,
-        width: "95%",
-        marginLeft: 10,
-        padding: 5,
-    },
-    playlistName: {
-        fontSize: 18,
-        color: '#FFF',
-    },
-    addButton: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 5,
-    },
-    addButtonText: {
-        fontSize: 16,
-        color: '#FFF',
-    },
-    messageContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 10,
-        marginBottom: 5,
-    },
-    userPhoto: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 10,
-    },
-    messageBox: {
-        backgroundColor: "#444",
-        padding: 10,
-        borderRadius: 8,
-        maxWidth: "80%",
-    },
-    senderName: {
-        color: "#FFF",
-        fontWeight: "bold",
-        fontSize: 14,
-    },
-    messageText: {
-        color: "#FFF",
-        fontSize: 16,
-    },
-    sendMessageContainer: {
-        flexDirection: 'row',
-        width: '100%',
-        paddingHorizontal: 10,
-        marginBottom: 10,
-    },
-    input: {
-        height: 45,
-        borderColor: "#555",
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        color: "#FFF",
-        backgroundColor: "#333",
-        flex: 1,
-    },
-    sendButton: {
-        marginLeft: 10,
-        padding: 10,
-        backgroundColor: '#444',
-        borderRadius: 8,
-    },
-    closeModal: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        zIndex: 999999,
-    },
-    modalBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    modal: {
-        flex: 1,
-        zIndex: 999999,
-        backgroundColor: '#ccc',
-        padding: 15,
-        width: '100%',
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-    },
-    modalContent: {
-        position: 'absolute',
-        bottom: 0,
-        width: '100%',
-        height: '60%',
-        backgroundColor: "#212121",
-        padding: 20,
-        borderTopRightRadius: 20,
-        borderTopLeftRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    friendItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginVertical: 10,
-    },
-    friendImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 9999,
-        marginRight: 10,
-    },
-    closeButtonText: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-
-    },
-});
 
 export default PlayerMusic;

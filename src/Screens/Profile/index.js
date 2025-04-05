@@ -146,16 +146,29 @@ const ProfileScreen = ({ route }) => {
             </View>
 
             <Tab.Navigator screenOptions={{
-                tabBarLabelStyle: { color: '#FFF' },
-                tabBarStyle: { backgroundColor: '#000' }
+                tabBarStyle: { backgroundColor: '#000' },
+                tabBarInactiveTintColor: 'gray',
+                tabBarActiveTintColor: '#FFF',
             }}>
-                <Tab.Screen name="MyMusics" initialParams={userId} component={MyMusics} />
-                <Tab.Screen name="Liked" component={Likeds} />
+                <Tab.Screen 
+                name="MyMusics" 
+                initialParams={userId} 
+                component={MyMusics} 
+                options={{
+                    title: 'Minhas Musicas',
+                }}/>
+                <Tab.Screen 
+                name="Liked" 
+                component={Likeds} 
+                options={{
+                    title: 'Curtidas',
+                }}/>
             </Tab.Navigator>
 
             <Modal
                 visible={showSettings}
-                transparent={true}>
+                transparent={true}
+                animationType="slide">
                 <Pressable style={styles.modalBackground}
                 onPress={() => setShowSettings(false)} />
 

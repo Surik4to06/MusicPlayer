@@ -32,6 +32,7 @@ export default function SearchFriends() {
                 data={usersList}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
+                contentContainerStyle={{ paddingBottom: 53 }}
             />
 
             {/* Modal para Exibir Perfil */}

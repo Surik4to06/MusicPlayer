@@ -62,8 +62,8 @@ export default function AudioList() {
                     const info = await MediaLibrary.getAssetInfoAsync(item.id);
                     return {
                         ...item,
-                        url: info.localUri || info.uri, // 🔹 Garante que há uma URL válida
-                        title: info.filename,
+                        url: info.localUri || info.uri, // Garante que há uma URL válida
+                        title: info.filename.replace(/\.[^/.]+$/, ""),
                         author: info.artist || "Desconhecido",
                         thumbnail: info?.album?.artwork || null,
                     };
@@ -79,32 +79,36 @@ export default function AudioList() {
 
     return (
         <View style={styles.container}>
-            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10, color: '#FFF' }}>
+            <Text style={styles.title}>
                 🎵 Músicas no Celular
             </Text>
             {audioFiles.length === 0 ? (
                 <Text>Nenhuma música encontrada.</Text>
             ) : (
                 <FlatList
+                contentContainerStyle={{ paddingBottom: 53}}
                     data={audioFiles}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={{ flexDirection: "row", padding: 10, borderBottomWidth: 1 }}
                             onPress={() => navigation.navigate("PlayerMusic", { playerMusic: item })}
                         >
                             {/* Exibir capa do álbum, se disponível */}
                             {item.thumbnail ? (
-                                <Image 
-                                    source={{ uri: item.thumbnail }} 
-                                    style={{ width: 50, height: 50, borderRadius: 5 }} 
+                                <Image
+                                    source={{ uri: item.thumbnail }}
+                                    style={styles.images}
                                 />
                             ) : (
-                                <View style={{ width: 50, height: 50, backgroundColor: "#ccc", borderRadius: 5 }} />
+                                <Image
+                                    source={require('../../../assets/musica.png')}
+                                    style={[ styles.images, {backgroundColor: '#AAA' }]}
+                                />
                             )}
 
                             <View style={{ marginLeft: 10 }}>
-                                <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: "bold", color: '#FFF' }}>{item.filename}</Text>
+                                <Text numberOfLines={1} style={styles.musicTitle}>{item.title}</Text>
                                 <Text style={{ fontSize: 14, color: "#ccc" }}>{item.author}</Text>
                             </View>
                         </TouchableOpacity>

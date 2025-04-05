@@ -60,13 +60,17 @@ export default () => {
                 <ActivityIndicator size="large" color="#FFF" />
             ) : userMusics.length > 0 ? (
                 <FlatList
-                    contentContainerStyle={{ paddingBottom: 53, paddingTop: 3 }}
+                    contentContainerStyle={{ paddingBottom: 58, paddingTop: 3 }}
                     data={userMusics}
                     keyExtractor={(item) => item.id}
                     numColumns={3}
                     renderItem={({ item }) => (
                         <Pressable onPress={() => navigation.navigate('PlayerMusic', { playerMusic: item })}>
-                            <Image source={{ uri: item.thumbnail }} style={styles.videos} />
+                            {item.thumbnail === null ?
+                                <Image source={require('../../../assets/musica.png')} style={[styles.videos, { backgroundColor: '#BCBCBC'}]} />
+                                :
+                                <Image source={{ uri: item.thumbnail }} style={styles.videos} />
+                            }
                         </Pressable>
                     )}
                 />

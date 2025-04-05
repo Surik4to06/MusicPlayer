@@ -10,7 +10,7 @@ import Input from '../../Components/textInput';
 import { styles } from "./styles";
 
 import { Auth, db, storage } from "../../Services/firebaseConfig";
-import { signOut, updateProfile } from "firebase/auth";
+import { updateProfile } from "firebase/auth";
 
 export default () => {
     const navigation = useNavigation();

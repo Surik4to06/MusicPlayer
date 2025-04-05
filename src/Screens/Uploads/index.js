@@ -14,10 +14,7 @@ const UploadMusic = () => {
     const [audioFile, setAudioFile] = useState(null);
     const [thumbnail, setThumbnail] = useState(null);
     const [musicName, setMusicName] = useState('');
-    const [authorName, setAuthorName] = useState('');
     const [loading, setLoading] = useState(false);
-
-    const navigation = useNavigation();
 
     const uniqueId = Date.now().toString() + Math.floor(Math.random() * 1000);
 
@@ -60,7 +57,7 @@ const UploadMusic = () => {
 
     const uploadMusic = async () => {
         setLoading(true);
-        if (!musicName || !authorName || !audioFile) {
+        if (!musicName || !audioFile) {
             Alert.alert("Erro", "Preencha todos os campos e selecione o arquivo de áudio.");
             setLoading(false)
             return;
@@ -89,7 +86,7 @@ const UploadMusic = () => {
                 id: uniqueId,
                 uidAuthor: Auth.currentUser.uid,
                 title: musicName,
-                author: authorName,
+                author: Auth.currentUser.displayName,
                 url: audioDownloadUrl,
                 thumbnail: thumbnailUrl || null,
             };
@@ -97,11 +94,11 @@ const UploadMusic = () => {
             await setDoc(doc(db, "musics", musicName), musicData);
             Alert.alert("Sucesso", "Sua música foi publicada com sucesso!");
             resetForm();
-            setLoading(false)
+            setLoading(false);
         } catch (error) {
             console.error("Erro ao fazer upload:", error);
             Alert.alert("Erro", "Ocorreu um erro ao fazer o upload.");
-            setLoading(false)
+            setLoading(false);
         }
     };
 
@@ -109,7 +106,6 @@ const UploadMusic = () => {
         setAudioFile(null);
         setThumbnail(null);
         setMusicName('');
-        setAuthorName('');
     };
 
     return (
@@ -129,30 +125,29 @@ const UploadMusic = () => {
                 value={musicName}
                 onChangeText={setMusicName}
                 multiline={true}
-                placeholder='Nome da Música'
-                placeholderTextColor="#FFF" />
+                placeholder='Digite o Nome da Música'
+                placeholderTextColor="#FFF"
+                numberOfLines={2} />
 
-            <TextInput
-                style={styles.input}
-                value={authorName}
-                onChangeText={setAuthorName}
-                placeholder='Nome do Autor'
-                placeholderTextColor="#FFF" />
+            <Text style={styles.authorName}>{Auth.currentUser.displayName}</Text>
 
-            <Pressable style={styles.containerBtnUpload} onPress={pickAudio}>
-                <Text style={styles.uploadBtn}>
-                    {audioFile ? `Áudio selecionado: ${audioFile.name}` : "Selecione uma música"}
-                </Text>
-            </Pressable>
+            {audioFile ?
+                <Pressable style={[styles.containerBtnUpload, { backgroundColor: 'transparent', marginTop: 25 }]} onPress={pickAudio}>
+                    <Text numberOfLines={2} style={styles.uploadBtn}>{`Áudio selecionado: ${audioFile.name}`}</Text>
+                </Pressable>
+                :
+                <Pressable style={[styles.containerBtnUpload, { marginTop: 40 }]} onPress={pickAudio}>
+                    <Text style={styles.uploadBtn}>Selecione uma música</Text>
+                </Pressable>
+            }
 
-
-            <Pressable style={styles.containerBtnUpload} onPress={uploadMusic}>
-                {loading ?
-                    <ActivityIndicator color='#FFF' size={36} />
-                    :
+            {loading ?
+                <ActivityIndicator color='#FFF' size={36} />
+                :
+                <Pressable style={[styles.containerBtnUpload, { marginTop: 10 }]} onPress={uploadMusic}>
                     <Text style={styles.uploadBtn}>Fazer Upload</Text>
-                }
-            </Pressable>
+                </Pressable>
+            }
         </View>
     );
 };

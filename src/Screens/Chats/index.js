@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, Pressable, FlatList, TextInput, Alert, Modal, StyleSheet } from "react-native";
+import { View, Text, Image, Pressable, FlatList, TextInput, Alert, Modal, StyleSheet, Animated, PanResponder } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Video } from "expo-av";
 import { styles } from "./styles";
@@ -18,6 +18,7 @@ export default ({ friendId, photo, friendUsername }) => {
 
     const flatListRef = useRef(null);
     const videoRef = useRef(null);
+    const pan = useRef(new Animated.ValueXY()).current;
 
     const [newMessage, setNewMessage] = useState("");
     const [messages, setMessages] = useState([]);
@@ -27,6 +28,7 @@ export default ({ friendId, photo, friendUsername }) => {
     const [isPlaying, setIsPlaying] = useState(true);
     const [showPhoto, setShowPhoto] = useState(false);
     const [uriPhoto, setUriPhoto] = useState(null);
+    const [imageHeight, setImageHeight] = useState(0);
 
     const chatId = [currentUser.uid, friendId].sort().join("_");
 
@@ -40,13 +42,10 @@ export default ({ friendId, photo, friendUsername }) => {
                 ...doc.data(),
             }));
             setMessages(msgs);
-            setTimeout(() => scrollToBottom(), 100);
 
-            // Atualizar contagem de mensagens não lidas
             const unread = msgs.filter(msg => msg.to === currentUser.uid && !msg.isRead).length;
             setUnreadCount(unread);
 
-            // Se a tela estiver focada, marca mensagens como lidas
             if (isFocused) {
                 marcarMensagensComoLidas();
             }
@@ -71,11 +70,16 @@ export default ({ friendId, photo, friendUsername }) => {
     };
 
     const Music = ({ item }) => {
+        const playerMusic = item.music;
         return (
             <Pressable
-                onPress={() =>
-                    navigation.navigate('PlayerMusic', { playerMusic: item.music })}
+                onPress={() => {
+                    navigation.navigate('PlayerMusic', { playerMusic: playerMusic })
+                }}
             >
+                <View style={styles.playVideo}>
+                    <Ionicons name="musical-notes" color="#FFF" size={40} />
+                </View>
                 <Image source={{ uri: item.music.thumbnail }} style={{ width: 200, height: 200, borderRadius: 10 }} />
 
             </Pressable>
@@ -103,7 +107,6 @@ export default ({ friendId, photo, friendUsername }) => {
     };
 
     // mostrar modal da foto em tela cheia
-
     const PhotoMessage = ({ uri }) => {
         return (
             <Pressable onPress={() => {
@@ -113,10 +116,33 @@ export default ({ friendId, photo, friendUsername }) => {
                 <Image source={{ uri: uri }} style={{ width: 200, height: 200, borderRadius: 10 }} />
             </Pressable>
         );
-    }
+    };
+
+    // ação pra arrastarr a tela e fechar a foto
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return Math.abs(gestureState.dy) > 10;
+            },
+            onPanResponderMove: Animated.event(
+                [null, { dy: pan.y }],
+                { useNativeDriver: false }
+            ),
+            onPanResponderRelease: (_, gesture) => {
+                if (Math.abs(gesture.dy) > 100) {
+                    setShowPhoto(false);
+                    pan.setValue({ x: 0, y: 0 });
+                } else {
+                    Animated.spring(pan, {
+                        toValue: { x: 0, y: 0 },
+                        useNativeDriver: false,
+                    }).start();
+                }
+            },
+        })
+    ).current;
 
     // controle de mensagens nn lidas e lidas
-
     const marcarMensagensComoLidas = async () => {
         try {
             const chatDoc = doc(db, "chats", chatId);
@@ -270,17 +296,59 @@ export default ({ friendId, photo, friendUsername }) => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal pra mostrar a foto */}
             <Modal
-                animationType="slide"
+                animationType="fade"
                 transparent={true}
                 visible={showPhoto}
+                onRequestClose={() => setShowPhoto(false)}
             >
-                <Pressable onPress={() => {
-                    setShowPhoto(false)
-                }}
-                    style={[{ backgroundColor: "rgba(0, 0, 0, 0.8)" }, StyleSheet.absoluteFillObject]} />
-                <Image source={{ uri: uriPhoto }} style={styles.modalPhoto} />
+                {/* Fundo escuro e clicável */}
+                <Pressable
+                    onPress={() => setShowPhoto(false)}
+                    style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1 }]}
+                />
+
+                {/* Imagem interativa */}
+                {uriPhoto && (
+                    <Animated.Image
+                        source={{ uri: uriPhoto }}
+                        onLoad={(e) => {
+                            const { height } = e.nativeEvent.source;
+                            setImageHeight(height);
+                        }}
+                        {...(imageHeight > 800 ? panResponder.panHandlers : {})}
+                        style={[
+                            imageHeight > 800
+                                ? {
+                                    width: '100%',
+                                    height: '100%',
+                                    borderRadius: 10,
+                                    zIndex: 2,
+                                    pointerEvents: 'auto',
+                                    transform: [{ translateY: pan.y }],
+                                }
+                                : {
+                                    width: 300,
+                                    height: 300,
+                                    borderRadius: 10,
+                                    zIndex: 2,
+                                    pointerEvents: 'auto',
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: [
+                                        { translateX: -150 },
+                                        { translateY: -150 },
+                                    ],
+                                },
+                        ]}
+                    />
+                )}
             </Modal>
+
+
         </View>
     );
 };

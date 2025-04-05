@@ -6,26 +6,31 @@ import { useNavigation } from "@react-navigation/native";
 const CardMusic = ({ item, togglePlay, isPlaying }) => {
     const navigation = useNavigation();
 
-    if (!item || !item.thumbnail || !item.title || !item.author) {
+    if (!item || !item.title || !item.author) {
         return null; // Se os dados estiverem incompletos, evita erro
     }
 
     return (
         <Pressable
             onPress={() => {
-                if (item && item.title && item.author && item.thumbnail) {
-                    navigation.navigate('PlayerMusic', { playerMusic: item })
-                }
+                navigation.navigate('PlayerMusic', { playerMusic: item })
             }}
             style={styles.cardMusic}
         >
             <View style={styles.containerCard}>
                 <View style={{ flexDirection: "row", padding: 10 }}>
-                    <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+
+                    {/* Muda a foto da musica caso ela não tenha foto */}
+                    {item.thumbnail === null ?
+                        <Image source={require('../../assets/musica.png')} style={[styles.thumbnail, { backgroundColor: '#BCBCBC' }]} />
+                        :
+                        <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+                    }
                     <View style={{ flex: 1, marginLeft: 10, overflow: "hidden" }}>
                         <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                         <Text style={styles.author} numberOfLines={1}>{item.author}</Text>
                     </View>
+
                 </View>
                 <Pressable onPress={() => togglePlay(item)} style={styles.btnPlayMusic}>
                     {isPlaying ? (
@@ -53,6 +58,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     thumbnail: {
+        width: 60,
+        height: 60,
+        borderRadius: 9999,
+    },
+    thumbnailNull: {
+        backgroundColor: '#DFDEE4',
         width: 60,
         height: 60,
         borderRadius: 9999,

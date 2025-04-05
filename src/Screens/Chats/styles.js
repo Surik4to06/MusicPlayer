@@ -94,19 +94,20 @@ export const styles = StyleSheet.create({
     paddingBottom: 3,
     paddingLeft: 10,
     paddingRight: 10,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1C1D22',
   },
   input: {
     backgroundColor: "#313B44",
-    borderRadius: 999,
+    borderRadius: 10,
     paddingLeft: 15,
     paddingRight: 15,
+    height: 55,
     flex: 1,
     marginRight: 10,
-    fontSize: 16,
+    fontSize: 18,
     color: '#FFF',
+    marginLeft: 10,
   },
   btnSendMensage: {
     backgroundColor: '#313B44',
@@ -120,7 +121,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalPhoto: {
-    width: 350, 
+    width: 350,
     height: 350,
     position: 'absolute',
     top: '50%',
@@ -138,6 +139,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#212121',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 3,
   },
   videoContainer: {
     width: "100%",
@@ -166,4 +168,15 @@ export const styles = StyleSheet.create({
   controlButton: {
     padding: 10,
   },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
+  },
+  pressable: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  }
 });

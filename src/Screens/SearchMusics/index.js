@@ -122,7 +122,6 @@ const MusicList = () => {
             />
         );
     };
-    console.log(musicsList)
 
     return (
         <View style={styles.container}>
@@ -131,6 +130,7 @@ const MusicList = () => {
                 data={musicsList}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={{ paddingBottom: 53 }}
             />
         </View>
     );

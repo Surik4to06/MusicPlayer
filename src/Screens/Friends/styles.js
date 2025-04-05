@@ -49,14 +49,15 @@ export const styles = StyleSheet.create({
   },
   searchInput: {
     width: '95%',
-    padding: 10,
-    paddingLeft: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 999,
-    marginBottom: 15,
-    backgroundColor: '#f9f9f9',
+    paddingLeft: 20,
+    paddingRight: 20,
+    height: 50,
+    fontSize: 18,
+    borderWidth: 1,
+    borderColor: 'gray',
+    backgroundColor: 'gray',
+    marginBottom: 20,
     marginLeft: 10,
-    fontSize: 14,
   }
 });

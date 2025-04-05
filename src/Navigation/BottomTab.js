@@ -36,13 +36,14 @@ export default () => {
                     position: 'absolute',
                     padding: 15,
                     height: 60,
-                }
+                },
              }}
             >
             <Tab.Screen 
                 name="Home" 
                 component={Home} 
                 options={{
+                    animation: 'shift',
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons 
                             name={focused ? "home" : "home-outline"} 
@@ -55,6 +56,8 @@ export default () => {
             <Tab.Screen 
                 name="Friends" 
                 options={{
+                    title: 'Amigos',
+                    animation: 'shift',
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons 
                             name={focused ? "people" : "people-outline"} 
@@ -71,6 +74,7 @@ export default () => {
                 name="Criar" 
                 component={Uploads} 
                 options={{
+                    animation: 'shift',
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons 
                             name={focused ? "add" : "add-outline"} 
@@ -84,6 +88,8 @@ export default () => {
                 name="Search" 
                 component={Search} 
                 options={{
+                    title: 'Pesquisar',
+                    animation: 'shift',
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons 
                             name={focused ? "search" : "search-outline"} 
@@ -97,6 +103,8 @@ export default () => {
                 name="Profile" 
                 component={Profile} 
                 options={{
+                    title: 'Perfil',
+                    animation: 'shift',
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons 
                             name={focused ? "person" : "person-outline"} 

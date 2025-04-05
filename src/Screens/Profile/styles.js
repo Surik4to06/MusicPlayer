@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
     top: 20,
     right: 10,
     zIndex: 999999,
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(240, 240, 240, 0.6)',
     borderRadius: 15,
     padding: 15,
   }

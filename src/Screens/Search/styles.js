@@ -21,7 +21,8 @@ inputText: {
     fontSize: 17,
     borderWidth: 1,
     borderColor: 'gray',
-    backgroundColor: 'gray'
+    backgroundColor: 'gray',
+    height: 50,
 },
 containerIcon: {
     justifyContent: 'center',
