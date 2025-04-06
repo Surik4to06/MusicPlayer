@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, Pressable, Modal, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Modal } from "react-native";
 import { Audio } from "expo-av";
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Entypo, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
-import { FlatList } from "react-native-gesture-handler";
-import * as MediaLibrary from "expo-media-library";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-
-import { Auth, db } from "../Services/firebaseConfig";
+import Slider from "@react-native-community/slider";
 
 const Player = ({ route }) => {
     const { playlist: initialPlaylist, playlistId } = route.params;
@@ -15,21 +11,16 @@ const Player = ({ route }) => {
 
     const [playlist, setPlaylist] = useState(initialPlaylist);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isChangingTrack, setIsChangingTrack] = useState(false);
     const [sound, setSound] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isChangingTrack, setIsChangingTrack] = useState(false);
-    const [musics, setMusics] = useState([]);
-    const [selecteds, setSelecteds] = useState([]);
-    const [showEmptyPlaylistModal, setShowEmptyPlaylistModal] = useState(false);
+    const [position, setPosition] = useState(0);
+    const [duration, setDuration] = useState(1);
+    const [playMode, setPlayMode] = useState("normal"); // normal | ramdon | loop
+    const [showMusicsPlaylist, setShowMusicsPlaylist] = useState(false);
 
     useEffect(() => {
-        fetchAllAudioFiles();
-
-        if (!playlist || playlist.length === 0) {
-            setShowEmptyPlaylistModal(true);
-            return;
-        }
-
+        if (!playlist || playlist.length === 0) return;
     }, []);
 
     useEffect(() => {
@@ -48,30 +39,20 @@ const Player = ({ route }) => {
 
     const playMusic = async (url) => {
         if (!url || isChangingTrack) return;
-
         setIsChangingTrack(true);
 
         try {
-            if (sound !== null) {
-                try {
-                    await sound.stopAsync();
-                    await sound.unloadAsync();
-                } catch (e) {
-                    console.warn("Erro ao parar/descarregar som anterior:", e);
-                }
+            if (sound) {
+                await sound.stopAsync();
+                await sound.unloadAsync();
                 setSound(null);
             }
 
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: url },
-                { shouldPlay: true }
+                { shouldPlay: true },
+                onPlaybackStatusUpdate
             );
-
-            newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.didJustFinish) {
-                    nextTrack();
-                }
-            });
 
             setSound(newSound);
             setIsPlaying(true);
@@ -82,86 +63,14 @@ const Player = ({ route }) => {
         }
     };
 
-    const fetchAllAudioFiles = async () => {
-        try {
-            let allAudio = [];
-            let hasNextPage = true;
-            let after = null;
+    const onPlaybackStatusUpdate = (status) => {
+        if (!status.isLoaded) return;
 
-            while (hasNextPage) {
-                const media = await MediaLibrary.getAssetsAsync({
-                    mediaType: MediaLibrary.MediaType.audio,
-                    first: 100,
-                    after: after,
-                });
+        setPosition(status.positionMillis);
+        setDuration(status.durationMillis || 1);
 
-                allAudio = [...allAudio, ...media.assets];
-                after = media.endCursor;
-                hasNextPage = media.hasNextPage;
-            }
-
-            const detailedAudio = await Promise.all(
-                allAudio.map(async (item) => {
-                    const info = await MediaLibrary.getAssetInfoAsync(item.id);
-                    return {
-                        ...item,
-                        url: info.localUri || info.uri,
-                        title: info.filename.replace(/\.[^/.]+$/, ""), // remove a estenção da musica
-                        author: info.artist || "Desconhecido",
-                        thumbnail: info?.album?.artwork || null,
-                    };
-                })
-            );
-
-            setMusics(detailedAudio);
-        } catch (error) {
-            Alert.alert("Erro ao buscar músicas", error.message);
-            console.error("Erro ao buscar músicas:", error);
-        }
-    };
-
-    const handleAddSongs = async () => {
-        if (!playlistId) return;
-
-        try {
-            const playlistRef = doc(db, "playlists", playlistId);
-            const playlistDoc = await getDoc(playlistRef);
-
-            if (!playlistDoc.exists()) {
-                console.error("Playlist não encontrada!");
-                return;
-            }
-
-            const playlistData = playlistDoc.data();
-            const selectedSongs = musics.filter(song => selecteds.includes(song.id));
-
-            const newMusics = selectedSongs.filter(
-                (song) => !playlistData.songs.some((s) => s.id === song.id)
-            ).map(song => ({
-                ...song,
-                addedBy: Auth.currentUser.displayName
-            }));
-
-            const playlistAtualizada = [...(playlistData.songs || []), ...newMusics];
-
-            await updateDoc(playlistRef, {
-                songs: playlistAtualizada
-            });
-
-            setPlaylist(playlistAtualizada);
-
-            Alert.alert("Músicas adicionadas!", `${newMusics.length} música(s) adicionada(s) à playlist.`);
-        } catch (error) {
-            console.error("Erro ao adicionar músicas:", error);
-            Alert.alert("Erro", "Não foi possível adicionar as músicas.");
-        }
-    };
-
-    const toggleSelect = (item) => {
-        if (selecteds.includes(item.id)) {
-            setSelecteds(selecteds.filter(id => id !== item.id));
-        } else {
-            setSelecteds([...selecteds, item.id]);
+        if (status.didJustFinish) {
+            handleNextTrack();
         }
     };
 
@@ -177,13 +86,20 @@ const Player = ({ route }) => {
         setIsPlaying(!isPlaying);
     };
 
-    const nextTrack = () => {
+    const handleNextTrack = () => {
         if (isChangingTrack) return;
 
-        if (currentIndex < playlist.length - 1) {
-            setCurrentIndex(currentIndex + 1);
+        if (playMode === "loop") {
+            playMusic(playlist[currentIndex]?.url);
+        } else if (playMode === "shuffle") {
+            const randomIndex = Math.floor(Math.random() * playlist.length);
+            setCurrentIndex(randomIndex);
         } else {
-            setCurrentIndex(0);
+            if (currentIndex < playlist.length - 1) {
+                setCurrentIndex(currentIndex + 1);
+            } else {
+                setCurrentIndex(0);
+            }
         }
     };
 
@@ -197,35 +113,31 @@ const Player = ({ route }) => {
         }
     };
 
-    const renderItem = ({ item }) => {
-        const selected = selecteds.includes(item.id);
+    const togglePlayMode = () => {
+        if (playMode === "normal") setPlayMode("shuffle");
+        else if (playMode === "shuffle") setPlayMode("loop");
+        else setPlayMode("normal");
+    };
 
-        return (
-            <TouchableOpacity style={styles.item} onPress={() => toggleSelect(item)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                    <Ionicons
-                        name={selected ? "checkbox-outline" : "square-outline"}
-                        size={24}
-                        color={selected ? "skyblue" : "#ccc"}
-                        style={{ marginRight: 10 }}
-                    />
-                    {item.thumbnail === null ?
-                        <Image source={require('../../assets/musica.png')} style={{ width: 50, height: 50, backgroundColor: '#AAA' }} />
-                        :
-                        <Image source={item.thumbnail} style={{ width: 50, height: 50, backgroundColor: '#AAA' }} />
-                    }
-                    <View style={{ marginLeft: 5, width: '60%' }}>
-                        <Text numberOfLines={2} style={{ color: '#FFF' }}>{item.title ? item.title.replace(/\.[^/.]+$/, "") : "Sem título"}</Text>
-                        <Text style={{ color: 'gray' }}>{item.author}</Text>
-                    </View>
-                </View>
-                <View style={{ borderWidth: 1, borderColor: '#AAA', marginTop: 10 }} />
-            </TouchableOpacity>
-        );
+    const renderPlayModeIcon = () => {
+        if (playMode === "shuffle") return <Entypo name="shuffle" size={40} color="skyblue" />;
+        if (playMode === "loop") return <Ionicons name="repeat" size={40} color="skyblue" />;
+        return <MaterialIcons name="repeat-one" size={40} color="#FFF" />;
+    };
+
+    const formatTime = (millis) => {
+        const totalSeconds = Math.floor(millis / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     };
 
     return (
         <View style={styles.container}>
+            {playlist[currentIndex]?.thumbnail && (
+                <Image blurRadius={6} source={{ uri: playlist[currentIndex].thumbnail }} style={StyleSheet.absoluteFillObject} />
+            )}
+
             <Pressable
                 style={styles.backBtn}
                 onPress={async () => {
@@ -236,13 +148,12 @@ const Player = ({ route }) => {
                         setSound(null);
                     }
                 }}>
-                <Ionicons style={{marginLeft: -3}} name='chevron-back' size={40} color="#FFF" />
+                <Ionicons name='chevron-back' size={40} color="#FFF" />
             </Pressable>
 
-            <View style={{ padding: 3, backgroundColor: "#AAA", borderRadius: 15, marginBottom: 20 }}>
-
+            <View style={{ marginTop: 40, marginBottom: 20 }}>
                 {playlist[currentIndex]?.thumbnail === null ?
-                    <Image source={require('../../assets/musica.png')} style={styles.image} />
+                    <Image source={require('../../assets/musica.png')} style={[styles.image, { backgroundColor: '#AAA' }]} />
                     :
                     <Image source={{ uri: playlist[currentIndex]?.thumbnail }} style={styles.image} />
                 }
@@ -250,6 +161,24 @@ const Player = ({ route }) => {
 
             <Text style={styles.text}>{playlist[currentIndex]?.title.replace(/\.[^/.]+$/, "") || "Sem título"}</Text>
             <Text style={styles.text}>{playlist[currentIndex]?.author || ""}</Text>
+
+            {/* Slider com tempos */}
+            <View style={styles.sliderContainer}>
+                <Text style={styles.timeText}>{formatTime(position)}</Text>
+
+                <Slider
+                    style={styles.slider}
+                    minimumValue={0}
+                    maximumValue={duration}
+                    value={position}
+                    minimumTrackTintColor="#1db954"
+                    maximumTrackTintColor="#ffffff"
+                    thumbTintColor="#1db954"
+                    onSlidingComplete={(value) => sound && sound.setPositionAsync(value)}
+                />
+
+                <Text style={styles.timeText}>{formatTime(duration)}</Text>
+            </View>
 
             <View style={styles.controls}>
                 <Pressable onPress={prevTrack} disabled={isChangingTrack}>
@@ -260,52 +189,55 @@ const Player = ({ route }) => {
                     <Ionicons name={isPlaying ? "pause" : "play"} size={70} color={isChangingTrack ? "#888" : "#FFF"} />
                 </Pressable>
 
-                <Pressable onPress={nextTrack} disabled={isChangingTrack}>
+                <Pressable onPress={handleNextTrack} disabled={isChangingTrack}>
                     <Ionicons name="play-forward" size={50} color={isChangingTrack ? "#888" : "#FFF"} />
                 </Pressable>
             </View>
 
+            <View style={{ paddingHorizontal: 20, width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                {/* Botão de modo de reprodução */}
+                <Pressable onPress={togglePlayMode}>
+                    {renderPlayModeIcon()}
+                </Pressable>
+
+                <Pressable
+                    onPress={() => setShowMusicsPlaylist(true)}>
+                    <Ionicons name="list-outline" color="#FFF" size={40} />
+                </Pressable>
+            </View>
+
+            {/* BottomSheet das musicas na playlist */}
             <Modal
-                visible={showEmptyPlaylistModal}
-                transparent
-                animationType="slide">
-
-                <View style={styles.modalContainer}>
+                animationType="slide"
+                transparent={true}
+                visible={showMusicsPlaylist}
+                onRequestClose={() => setShowMusicsPlaylist(false)}
+            >
+                <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Pressable
-                            onPress={() => navigation.goBack()}
-                            style={{
-                                position: 'absolute',
-                                top: 20,
-                                left: 20,
-                            }}>
-                            <Ionicons name="chevron-back" color="#FFF" size={30} />
+                        <Pressable onPress={() => setShowMusicsPlaylist(false)} style={styles.closeButton}>
+                            <Ionicons name="close" size={30} color="#FFF" />
                         </Pressable>
 
-                        <Text style={styles.modalText}>Sua playlist está vazia!</Text>
+                        <Text style={styles.modalTitle}>Músicas da Playlist</Text>
 
-                        <FlatList
-                            style={{ width: '100%' }}
-                            data={musics}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={renderItem} />
-
-                        <Pressable
-                            style={styles.modalButton}
-                            onPress={() => {
-                                if (selecteds.length === 0) {
-                                    Alert.alert("Selecione pelo menos uma música");
-                                    return;
-                                }
-                                setShowEmptyPlaylistModal(false);
-                                handleAddSongs();
-                            }}
-                        >
-                            <Text style={styles.modalButtonText}>Adicionar Músicas</Text>
-                        </Pressable>
+                        {playlist.map((music, index) => (
+                            <Pressable
+                                key={index}
+                                onPress={() => {
+                                    setCurrentIndex(index);
+                                    setShowMusicsPlaylist(false);
+                                }}
+                                style={styles.musicItem}
+                            >
+                                <Text style={styles.musicTitle}>{music.title.replace(/\.[^/.]+$/, "")}</Text>
+                                <Text style={styles.musicAuthor}>{music.author}</Text>
+                            </Pressable>
+                        ))}
                     </View>
                 </View>
             </Modal>
+
         </View>
     );
 };
@@ -319,7 +251,7 @@ const styles = StyleSheet.create({
     },
     backBtn: {
         position: 'absolute',
-        top: 20, 
+        top: 20,
         left: 20,
         backgroundColor: '#212121',
         height: 50,
@@ -329,13 +261,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     image: {
-        width: 150,
-        height: 150,
+        width: 300,
+        height: 300,
+        borderRadius: 15,
     },
     text: {
         color: "#FFF",
         fontSize: 18,
         marginTop: 10,
+        textAlign: 'center'
     },
     controls: {
         flexDirection: "row",
@@ -343,34 +277,60 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
+    slider: {
+        width: "100%",
+        height: 40,
+    },
+    sliderContainer: {
+        flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
+        width: "90%",
+        marginTop: 30,
+    },
+    slider: {
+        flex: 1,
+    },
+    timeText: {
+        color: "#FFF",
+        fontSize: 12,
+        width: 40,
+        textAlign: "center",
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'flex-end',
     },
     modalContent: {
-        flex: 1,
-        width: '100%',
-        backgroundColor: "#000",
+        height: '100%',
+        backgroundColor: '#121212',
         padding: 20,
-        borderRadius: 10,
-        alignItems: "center",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
     },
-    modalText: {
-        fontSize: 18,
-        fontWeight: "bold",
+    closeButton: {
+        alignSelf: 'flex-end',
         marginBottom: 10,
+    },
+    modalTitle: {
         color: '#FFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
     },
-    modalButton: {
-        backgroundColor: "#7CACF8",
-        padding: 10,
-        borderRadius: 5,
+    musicItem: {
+        marginBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+        paddingBottom: 10,
     },
-    modalButtonText: {
-        color: "#FFF",
+    musicTitle: {
+        color: '#FFF',
         fontSize: 16,
+    },
+    musicAuthor: {
+        color: '#AAA',
+        fontSize: 14,
     },
 });
 

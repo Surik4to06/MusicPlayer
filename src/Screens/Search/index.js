@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { StatusBar, TextInput, View } from 'react-native';
 
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, orderBy, startAt } from "firebase/firestore";
 import { db } from "../../Services/firebaseConfig";
 
 import { AuthContext } from '../../Context/AuthContext';
@@ -40,12 +40,24 @@ export default () => {
   const searchMusicInFirebase = async (searchTerm) => {
     try {
       const musicRef = collection(db, "musics");
-      const q = query(
-        musicRef,
-        where("title", ">=", searchTerm),
-        where("title", "<=", searchTerm + "\uf8ff")
-      );
-
+  
+      let q;
+  
+      if (searchTerm.trim()) {
+        q = query(
+          musicRef,
+          where("title", ">=", searchTerm),
+          where("title", "<=", searchTerm + "\uf8ff"),
+          limit(20) // opcional: limitar mesmo em busca
+        );
+      } else {
+        q = query(
+          musicRef,
+          orderBy("title"),
+          limit(10) // quando sem busca, pega só os primeiros 10
+        );
+      }
+  
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -63,17 +75,22 @@ export default () => {
 
   // Pesquisa músicas na API Audius
   const searchMusicInAudius = async (searchTerm) => {
-    let search = searchTerm?.trim() || "top hits";
+    const termosBR = ["mpb", "trap", "sertanejo", "funk", "bossa", "pagode"];
+    const termos = searchTerm?.trim() ? [searchTerm] : termosBR;
   
     try {
-      const query = encodeURIComponent(search);
-      const response = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${query}&app_name=MusicFinder`);
-      const data = await response.json();
+      const results = await Promise.all(
+        termos.map(term =>
+          fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(term)}&app_name=MusicFinder`)
+            .then(res => res.json())
+            .then(data => data.data || [])
+        )
+      );
   
-      if (!data || !data.data) return [];
-  
-      const tracks = data.data
-        .filter(track => !!track.id) // só tracks com ID válido
+      const allTracks = results.flat()
+        .filter((track, index, self) =>
+          !!track.id && self.findIndex(t => t.id === track.id) === index
+        )
         .map(track => ({
           id: track.id.toString(),
           title: track.title,
@@ -83,12 +100,14 @@ export default () => {
           source: "audius"
         }));
   
-      return tracks;
+      return allTracks.slice(0, 10); // retorna só as 10 primeiras
     } catch (error) {
       console.error("Erro ao buscar no Audius:", error);
       return [];
     }
   };
+  
+  
 
   // Pesquisa usuários no Firebase
   const searchUsers = async (searchTerm) => {

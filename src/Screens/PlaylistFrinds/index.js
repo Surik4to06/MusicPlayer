@@ -92,7 +92,7 @@ export default function PlaylistsScreen({ friendId, friendUsername, photo }) {
         <Pressable
             style={styles.playlistContainer}
             onPress={() => {
-                navigation.navigate("PlaylistSettings", {playlist: item});
+                navigation.navigate("PlaylistSettings", {playlist: item, friendName: friendUsername});
             }}
         >
             <Text style={styles.numSongs}>{item.songs.length}</Text>
