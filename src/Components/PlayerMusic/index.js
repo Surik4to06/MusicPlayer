@@ -26,7 +26,6 @@ const PlayerMusic = ({ route }) => {
     const [playlists, setPlaylists] = useState([]); // Para armazenar as playlists do usuário
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState(""); // Mensagem a ser enviada
-    const [showMusicList, setShowMusicList] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false); // Controle do modal
     const [friendsList, setFriendsList] = useState([]);
     const [musicSettings, setMusicSettings] = useState(false);
@@ -301,7 +300,7 @@ const PlayerMusic = ({ route }) => {
         } else {
             // Adicionar a música na playlist
             await updateDoc(playlistRef, {
-                songs: arrayUnion({ ...playerMusic, addedBy: Auth.currentUser.displayName })
+                songs: arrayUnion({ ...playerMusic, addedBy: Auth.currentUser.displayName, addedByUid: Auth.currentUser.uid })
             });
         }
     };

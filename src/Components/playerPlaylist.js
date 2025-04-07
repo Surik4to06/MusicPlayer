@@ -6,11 +6,11 @@ import { useNavigation } from "@react-navigation/native";
 import Slider from "@react-native-community/slider";
 
 const Player = ({ route }) => {
-    const { playlist: initialPlaylist, playlistId } = route.params;
+    const { playlist: initialPlaylist, initialIndex = 0 } = route.params;
     const navigation = useNavigation();
 
     const [playlist, setPlaylist] = useState(initialPlaylist);
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isChangingTrack, setIsChangingTrack] = useState(false);
     const [sound, setSound] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -159,8 +159,8 @@ const Player = ({ route }) => {
                 }
             </View>
 
-            <Text style={styles.text}>{playlist[currentIndex]?.title.replace(/\.[^/.]+$/, "") || "Sem título"}</Text>
-            <Text style={styles.text}>{playlist[currentIndex]?.author || ""}</Text>
+            <Text numberOfLines={1} style={styles.text}>{playlist[currentIndex]?.title.replace(/\.[^/.]+$/, "") || "Sem título"}</Text>
+            <Text numberOfLines={1} style={styles.text}>{playlist[currentIndex]?.author || ""}</Text>
 
             {/* Slider com tempos */}
             <View style={styles.sliderContainer}>
@@ -230,8 +230,17 @@ const Player = ({ route }) => {
                                 }}
                                 style={styles.musicItem}
                             >
-                                <Text style={styles.musicTitle}>{music.title.replace(/\.[^/.]+$/, "")}</Text>
-                                <Text style={styles.musicAuthor}>{music.author}</Text>
+                                <View style={{ flexDirection: 'row' }}>
+                                    {music.thumbnail === null ?
+                                        <Image source={require('../../assets/musica.png')} style={[styles.playlistImage, { backgroundColor: "#AAA" }]} />
+                                        :
+                                        <Image source={{ uri: music.thumbnail }} style={styles.playlistImage} />
+                                    }
+                                    <View style={{width: '100%'}}>
+                                        <Text numberOfLines={1} style={styles.musicTitle}>{music.title.replace(/\.[^/.]+$/, "")}</Text>
+                                        <Text numberOfLines={1} style={styles.musicAuthor}>{music.author}</Text>
+                                    </View>
+                                </View>
                             </Pressable>
                         ))}
                     </View>
@@ -313,6 +322,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     modalTitle: {
+        marginTop: -40,
         color: '#FFF',
         fontSize: 20,
         fontWeight: 'bold',
@@ -324,9 +334,17 @@ const styles = StyleSheet.create({
         borderBottomColor: '#333',
         paddingBottom: 10,
     },
+    playlistImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#AAA',
+        marginRight: 10,
+    },
     musicTitle: {
         color: '#FFF',
         fontSize: 16,
+        width: '80%',
     },
     musicAuthor: {
         color: '#AAA',

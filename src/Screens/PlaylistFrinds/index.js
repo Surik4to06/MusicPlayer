@@ -11,7 +11,7 @@ import { collection, addDoc, onSnapshot } from "firebase/firestore";
 import { Auth, db, storage } from "../../Services/firebaseConfig";
 import { styles } from './styles';
 
-export default function PlaylistsScreen({ friendId, friendUsername, photo }) {
+export default function PlaylistsScreen({ friendId, friendUsername }) {
     const navigation = useNavigation();
 
     const currentUser = Auth.currentUser;
@@ -92,7 +92,7 @@ export default function PlaylistsScreen({ friendId, friendUsername, photo }) {
         <Pressable
             style={styles.playlistContainer}
             onPress={() => {
-                navigation.navigate("PlaylistSettings", {playlist: item, friendName: friendUsername});
+                navigation.navigate("PlaylistSettings", {playlist: item, friendName: friendUsername, friendId: friendId });
             }}
         >
             <Text style={styles.numSongs}>{item.songs.length}</Text>

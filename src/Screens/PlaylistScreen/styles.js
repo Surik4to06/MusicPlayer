@@ -76,6 +76,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
     gap: 10,
+    width: '100%',
   },
   songThumbnail: {
     width: 50,

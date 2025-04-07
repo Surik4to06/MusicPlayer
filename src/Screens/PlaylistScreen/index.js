@@ -19,33 +19,46 @@ const PlaylistScreen = ({ route }) => {
     const [showEmptyPlaylistModal, setShowEmptyPlaylistModal] = useState(false);
     const [musics, setMusics] = useState([]);
     const [selecteds, setSelecteds] = useState([]);
+    const [userPhotos, setUserPhotos] = useState({});
 
     useEffect(() => {
         fetchAllAudioFiles();
+
         if (playlist.songs.length <= 0) {
             Alert.alert(
                 "Aviso!",
-                "Parece que vocês ainda não possuem nenhuma musica na plylist. Deseja adicionar Músicas?",
+                "Parece que vocês ainda não possuem nenhuma musica na playlist. Deseja adicionar Músicas?",
                 [
-                    {
-                        text: "Cancelar",
-                        onPress: () => console.log("Cancelado"),
-                        style: "cancel",
-                    },
-                    {
-                        text: "Adicionar",
-                        onPress: () => {
-                            // ação que você quiser
-                            setShowEmptyPlaylistModal(true);
-                        },
-                    },
+                    { text: "Cancelar", onPress: () => console.log("Cancelado"), style: "cancel" },
+                    { text: "Adicionar", onPress: () => setShowEmptyPlaylistModal(true) },
                 ],
                 { cancelable: true }
             );
         }
+
+        const uniqueUids = [...new Set(playlist.songs.map(song => song.addedByUid))];
+        uniqueUids.forEach(uid => getUserPhoto(uid));
     }, []);
 
-    // Puxa todas as msicas do celular do usuario para poder adicionalas na playlist
+    const getUserPhoto = async (uid) => {
+        if (userPhotos[uid]) return;
+
+        try {
+            const userDocRef = doc(db, "users", uid);
+            const userSnap = await getDoc(userDocRef);
+
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                setUserPhotos(prev => ({
+                    ...prev,
+                    [uid]: userData.photo || null,
+                }));
+            }
+        } catch (error) {
+            console.error("Erro ao buscar foto do usuário:", error);
+        }
+    };
+
     const fetchAllAudioFiles = async () => {
         try {
             let allAudio = [];
@@ -70,7 +83,7 @@ const PlaylistScreen = ({ route }) => {
                     return {
                         ...item,
                         url: info.localUri || info.uri,
-                        title: info.filename.replace(/\.[^/.]+$/, ""), // remove a estenção da musica
+                        title: info.filename.replace(/\.[^/.]+$/, ""),
                         author: info.artist || "Desconhecido",
                         thumbnail: info?.album?.artwork || null,
                     };
@@ -109,7 +122,8 @@ const PlaylistScreen = ({ route }) => {
                 (song) => !playlistData.songs.some((s) => s.id === song.id)
             ).map(song => ({
                 ...song,
-                addedBy: Auth.currentUser.displayName
+                addedBy: Auth.currentUser.displayName,
+                addedByUid: Auth.currentUser.uid,
             }));
 
             const playlistAtualizada = [...(playlistData.songs || []), ...newMusics];
@@ -125,10 +139,20 @@ const PlaylistScreen = ({ route }) => {
         }
     };
 
-    // se a playlist nn estiver vazia renderiza as musicas
-    const renderItemMusics = ({ item }) => {
+    const renderItemMusics = ({ item, index }) => {
+        const userPhoto = userPhotos[item.addedByUid];
+
         return (
-            <View style={styles.songItem}>
+            <Pressable
+                onPress={() => {
+                    navigation.navigate(
+                        "PlayerTeste", {
+                        playlist: playlist.songs,
+                        playlistId: playlist.id,
+                        initialIndex: index ?? null,
+                    });
+                }}
+                style={styles.songItem}>
                 <Image
                     source={
                         item.thumbnail
@@ -136,15 +160,17 @@ const PlaylistScreen = ({ route }) => {
                             : require('../../../assets/musica.png')
                     }
                     style={styles.songThumbnail} />
-                <View>
-                    <Text style={styles.songTitle}>{item.title}</Text>
-                    <Text style={styles.songAuthor}>{item.author}</Text>
+                <View style={{ width: '70%', justifyContent: 'center' }}>
+                    <Text numberOfLines={1} style={styles.songTitle}>{item.title}</Text>
+                    <Text numberOfLines={1} style={styles.songAuthor}>{item.author}</Text>
                 </View>
-            </View>
+                {userPhoto && (
+                    <Image source={{ uri: userPhoto }} style={{ width: 20, height: 20, borderRadius: 999 }} />
+                )}
+            </Pressable>
         );
-    }
+    };
 
-    // renderiza os audios do celular e joga no flatlist pra selecionar
     const renderItem = ({ item }) => {
         const selected = selecteds.includes(item.id);
 
@@ -174,10 +200,7 @@ const PlaylistScreen = ({ route }) => {
 
     return (
         <ScrollView style={styles.container}>
-            {/* cabeçalho */}
             <View style={styles.header}>
-
-                {/* Botões do cabeçalho */}
                 <Pressable
                     style={[styles.backBtn, { left: 5 }]}
                     onPress={() => navigation.goBack()}>
@@ -195,18 +218,15 @@ const PlaylistScreen = ({ route }) => {
                 </Pressable>
             </View>
 
-            {/* Imagem da playlist */}
             {playlist.thumbnail === null ?
-            <Image source={require('../../../assets/musica.png')} style={[styles.playlistImage, { backgroundColor: "#AAA" }]} />
-            :
-            <Image source={{ uri: playlist.thumbnail }} style={styles.playlistImage} />
+                <Image source={require('../../../assets/musica.png')} style={[styles.playlistImage, { backgroundColor: "#AAA" }]} />
+                :
+                <Image source={{ uri: playlist.thumbnail }} style={styles.playlistImage} />
             }
 
-            {/* Nome e quantidade de músicas */}
             <Text style={styles.playlistTitle}>{playlist.name}</Text>
             <Text style={styles.songCount}>{playlist.songs.length} Músicas</Text>
 
-            {/* Botões de ação */}
             <View style={styles.buttonContainer}>
                 <Pressable
                     onPress={() => {
@@ -223,7 +243,6 @@ const PlaylistScreen = ({ route }) => {
                 </Pressable>
             </View>
 
-            {/* Lista de músicas */}
             <FlatList
                 style={{ paddingBottom: 30 }}
                 data={playlist.songs}
@@ -234,7 +253,6 @@ const PlaylistScreen = ({ route }) => {
                 showsVerticalScrollIndicator={false}
             />
 
-            {/* Modal pra mostrar as musicas do celular para poder adicionalas na playlist */}
             <Modal
                 visible={showEmptyPlaylistModal}
                 transparent
@@ -244,11 +262,7 @@ const PlaylistScreen = ({ route }) => {
                     <View style={styles.modalContent}>
                         <Pressable
                             onPress={() => setShowEmptyPlaylistModal(false)}
-                            style={{
-                                position: 'absolute',
-                                top: 20,
-                                left: 20,
-                            }}>
+                            style={{ position: 'absolute', top: 20, left: 20 }}>
                             <Ionicons name="chevron-back" color="#FFF" size={30} />
                         </Pressable>
 
@@ -269,15 +283,13 @@ const PlaylistScreen = ({ route }) => {
                                 }
                                 setShowEmptyPlaylistModal(false);
                                 handleAddSongs();
-                            }}
-                        >
+                            }}>
                             <Text style={styles.modalButtonText}>Adicionar Músicas</Text>
                         </Pressable>
                     </View>
                 </View>
             </Modal>
         </ScrollView>
-
     );
 };
 
