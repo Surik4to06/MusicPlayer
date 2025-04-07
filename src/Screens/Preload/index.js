@@ -31,13 +31,13 @@ export default () => {
     };
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#212121' }}>
+        <View style={styles.container}>
             <Video
-                source={require('../../../assets/openning.mp4')} // Caminho para o arquivo de vídeo
-                style={{ width: '100%', height: '100%', flex: 1 }} // O vídeo vai preencher a tela
-                isLooping={false} // Não faz loop
-                shouldPlay={true} // Começa a reprodução automaticamente
-                onPlaybackStatusUpdate={handleStatusUpdate} // Atualiza o status do playback
+                source={require('../../../assets/openning.mp4')}
+                style={styles.video}
+                isLooping={false}
+                shouldPlay={true}
+                onPlaybackStatusUpdate={handleStatusUpdate}
             />
         </View>
     );

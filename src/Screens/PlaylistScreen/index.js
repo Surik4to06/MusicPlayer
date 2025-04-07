@@ -5,39 +5,39 @@ import { FlatList } from "react-native-gesture-handler";
 
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system";
 
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Auth, db } from "../../Services/firebaseConfig";
 
 import { styles } from './styles';
 
 const PlaylistScreen = ({ route }) => {
     const { playlist, friendName } = route.params;
-
     const navigation = useNavigation();
 
     const [showEmptyPlaylistModal, setShowEmptyPlaylistModal] = useState(false);
     const [musics, setMusics] = useState([]);
     const [selecteds, setSelecteds] = useState([]);
     const [userPhotos, setUserPhotos] = useState({});
+    const [playlistData, setPlaylistData] = useState(playlist);
 
     useEffect(() => {
         fetchAllAudioFiles();
 
-        if (playlist.songs.length <= 0) {
-            Alert.alert(
-                "Aviso!",
-                "Parece que vocês ainda não possuem nenhuma musica na playlist. Deseja adicionar Músicas?",
-                [
-                    { text: "Cancelar", onPress: () => console.log("Cancelado"), style: "cancel" },
-                    { text: "Adicionar", onPress: () => setShowEmptyPlaylistModal(true) },
-                ],
-                { cancelable: true }
-            );
-        }
+        const playlistRef = doc(db, "playlists", playlist.id);
+        const unsubscribe = onSnapshot(playlistRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const updatedPlaylist = snapshot.data();
+                setPlaylistData({ ...updatedPlaylist, id: snapshot.id });
 
-        const uniqueUids = [...new Set(playlist.songs.map(song => song.addedByUid))];
-        uniqueUids.forEach(uid => getUserPhoto(uid));
+                const uniqueUids = [...new Set(updatedPlaylist.songs.map(song => song.addedByUid))];
+                uniqueUids.forEach(uid => getUserPhoto(uid));
+            }
+        });
+
+        return () => unsubscribe(); // Limpa o listener ao desmontar
     }, []);
 
     const getUserPhoto = async (uid) => {
@@ -46,7 +46,6 @@ const PlaylistScreen = ({ route }) => {
         try {
             const userDocRef = doc(db, "users", uid);
             const userSnap = await getDoc(userDocRef);
-
             if (userSnap.exists()) {
                 const userData = userSnap.data();
                 setUserPhotos(prev => ({
@@ -108,31 +107,54 @@ const PlaylistScreen = ({ route }) => {
     const handleAddSongs = async () => {
         try {
             const playlistRef = doc(db, "playlists", playlist.id);
-            const playlistDoc = await getDoc(playlistRef);
+            const playlistSnap = await getDoc(playlistRef);
 
-            if (!playlistDoc.exists()) {
+            if (!playlistSnap.exists()) {
                 console.error("Playlist não encontrada!");
                 return;
             }
 
-            const playlistData = playlistDoc.data();
+            const currentData = playlistSnap.data();
             const selectedSongs = musics.filter(song => selecteds.includes(song.id));
 
-            const newMusics = selectedSongs.filter(
-                (song) => !playlistData.songs.some((s) => s.id === song.id)
-            ).map(song => ({
-                ...song,
-                addedBy: Auth.currentUser.displayName,
-                addedByUid: Auth.currentUser.uid,
-            }));
+            const storage = getStorage();
 
-            const playlistAtualizada = [...(playlistData.songs || []), ...newMusics];
+            const uploadedSongs = [];
 
-            await updateDoc(playlistRef, {
-                songs: playlistAtualizada
-            });
+            for (const song of selectedSongs) {
+                const alreadyExists = currentData.songs?.some((s) => s.id === song.id);
+                if (alreadyExists) continue;
+            
+                const response = await fetch(song.url);
+                const blob = await response.blob();
+            
+                const storageRef = ref(storage, `playlistMusics/${song.id}.mp3`);
+                await uploadBytes(storageRef, blob);
+            
+                const url = await getDownloadURL(storageRef);
+            
+                const songToAdd = {
+                    id: song.id,
+                    title: song.title,
+                    author: song.author,
+                    thumbnail: song.thumbnail,
+                    url: url,
+                    addedBy: Auth.currentUser.displayName,
+                    addedByUid: Auth.currentUser.uid,
+                };
+            
+                uploadedSongs.push(songToAdd);
+            }
 
-            Alert.alert("Músicas adicionadas!", `${newMusics.length} música(s) adicionada(s) à playlist.`);
+            if (uploadedSongs.length > 0) {
+                await updateDoc(playlistRef, {
+                    songs: [...(currentData.songs || []), ...uploadedSongs],
+                });
+
+                Alert.alert("Músicas adicionadas!", `${uploadedSongs.length} música(s) adicionada(s) à playlist.`);
+            } else {
+                Alert.alert("Nenhuma música nova para adicionar.");
+            }
         } catch (error) {
             console.error("Erro ao adicionar músicas:", error);
             Alert.alert("Erro", "Não foi possível adicionar as músicas.");
@@ -147,19 +169,18 @@ const PlaylistScreen = ({ route }) => {
                 onPress={() => {
                     navigation.navigate(
                         "PlayerTeste", {
-                        playlist: playlist.songs,
-                        playlistId: playlist.id,
+                        playlist: playlistData.songs,
+                        playlistId: playlistData.id,
                         initialIndex: index ?? null,
                     });
                 }}
                 style={styles.songItem}>
                 <Image
-                    source={
-                        item.thumbnail
-                            ? { uri: item.thumbnail }
-                            : require('../../../assets/musica.png')
-                    }
-                    style={styles.songThumbnail} />
+                    source={item.thumbnail
+                        ? { uri: item.thumbnail }
+                        : require('../../../assets/musica.png')}
+                    style={styles.songThumbnail}
+                />
                 <View style={{ width: '70%', justifyContent: 'center' }}>
                     <Text numberOfLines={1} style={styles.songTitle}>{item.title}</Text>
                     <Text numberOfLines={1} style={styles.songAuthor}>{item.author}</Text>
@@ -183,13 +204,12 @@ const PlaylistScreen = ({ route }) => {
                         color={selected ? "skyblue" : "#ccc"}
                         style={{ marginRight: 10 }}
                     />
-                    {item.thumbnail === null ?
-                        <Image source={require('../../../assets/musica.png')} style={{ width: 50, height: 50, backgroundColor: '#AAA' }} />
-                        :
-                        <Image source={item.thumbnail} style={{ width: 50, height: 50, backgroundColor: '#AAA' }} />
-                    }
+                    <Image
+                        source={item.thumbnail ? item.thumbnail : require('../../../assets/musica.png')}
+                        style={{ width: 50, height: 50, backgroundColor: '#AAA' }}
+                    />
                     <View style={{ marginLeft: 5, width: '60%' }}>
-                        <Text numberOfLines={2} style={{ color: '#FFF' }}>{item.title ? item.title.replace(/\.[^/.]+$/, "") : "Sem título"}</Text>
+                        <Text numberOfLines={2} style={{ color: '#FFF' }}>{item.title}</Text>
                         <Text style={{ color: 'gray' }}>{item.author}</Text>
                     </View>
                 </View>
@@ -211,41 +231,50 @@ const PlaylistScreen = ({ route }) => {
 
                 <Pressable
                     onPress={() => {
-                        navigation.navigate('EditPlaylist', { playlist: playlist });
+                        navigation.navigate('EditPlaylist', { playlist: playlistData });
                     }}
                     style={[styles.backBtn, { right: 5 }]}>
                     <Ionicons name="settings-outline" size={30} color="#FFF" />
                 </Pressable>
             </View>
 
-            {playlist.thumbnail === null ?
+            {playlistData.thumbnail === null ?
                 <Image source={require('../../../assets/musica.png')} style={[styles.playlistImage, { backgroundColor: "#AAA" }]} />
                 :
-                <Image source={{ uri: playlist.thumbnail }} style={styles.playlistImage} />
+                <Image source={{ uri: playlistData.thumbnail }} style={styles.playlistImage} />
             }
 
-            <Text style={styles.playlistTitle}>{playlist.name}</Text>
-            <Text style={styles.songCount}>{playlist.songs.length} Músicas</Text>
+            <Text style={styles.playlistTitle}>{playlistData.name}</Text>
+            <Text style={styles.songCount}>{playlistData.songs.length} Músicas</Text>
 
             <View style={styles.buttonContainer}>
                 <Pressable
                     onPress={() => {
-                        navigation.navigate("PlayerTeste", { playlist: playlist.songs, playlistId: playlist.id });
+                        if (!playlistData.songs || playlistData.songs.length === 0) {
+                            setShowEmptyPlaylistModal(true);
+                            return;
+                        }
+
+                        navigation.navigate("PlayerTeste", {
+                            playlist: playlistData.songs,
+                            playlistId: playlistData.id,
+                        });
                     }}
-                    style={styles.button}>
+                    style={styles.button}
+                >
                     <Ionicons name="play" size={18} color="#fff" />
                     <Text style={styles.buttonText}>Play</Text>
                 </Pressable>
 
                 <Pressable style={styles.button}>
-                    <Ionicons name="shuffle" size={18} color="#fff" />
-                    <Text style={styles.buttonText}>Shuffle</Text>
+                    <Ionicons name="arrow-redo-outline" size={18} color="#fff" />
+                    <Text style={styles.buttonText}>Compartilhar</Text>
                 </Pressable>
             </View>
 
             <FlatList
                 style={{ paddingBottom: 30 }}
-                data={playlist.songs}
+                data={playlistData.songs}
                 keyExtractor={(item, index) => index.toString()}
                 scrollEnabled={false}
                 renderItem={renderItemMusics}
@@ -257,7 +286,6 @@ const PlaylistScreen = ({ route }) => {
                 visible={showEmptyPlaylistModal}
                 transparent
                 animationType="slide">
-
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Pressable
@@ -272,7 +300,8 @@ const PlaylistScreen = ({ route }) => {
                             style={{ width: '100%' }}
                             data={musics}
                             keyExtractor={(item) => item.id.toString()}
-                            renderItem={renderItem} />
+                            renderItem={renderItem}
+                        />
 
                         <Pressable
                             style={styles.modalButton}

@@ -320,6 +320,7 @@ const styles = StyleSheet.create({
     closeButton: {
         alignSelf: 'flex-end',
         marginBottom: 10,
+        zIndex: 9999,
     },
     modalTitle: {
         marginTop: -40,

@@ -10,6 +10,7 @@ import ProfileScreen from "../Components/profileScreen";
 import TopTab from "./TopTab";
 import Player from "../Components/playerPlaylist";
 import PlaylistScreen from "../Screens/PlaylistScreen";
+import editPlaylist from "../Components/editPlaylist";
 
 export default () => {
 
@@ -30,6 +31,7 @@ export default () => {
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="PlayerTeste" component={Player} />
             <Stack.Screen name="PlaylistSettings" component={PlaylistScreen} />
+            <Stack.Screen name="EditPlaylist" component={editPlaylist} />
             <Stack.Screen name="TopTab" component={TopTab} />
         </Stack.Navigator>
     );

@@ -9,6 +9,7 @@ export const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
+    padding: 3,
     top: -60,
     width: '112%',
     height: 60,

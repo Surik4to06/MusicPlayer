@@ -3,11 +3,12 @@ import { View, Text, Image, Pressable, StyleSheet, BackHandler, Animated, FlatLi
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { getDoc, updateDoc, doc, arrayUnion, onSnapshot, query, collection, where, addDoc, serverTimestamp, arrayRemove } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { Auth, db } from "../../Services/firebaseConfig";
+import { Auth, db, storage } from "../../Services/firebaseConfig";
 import { downloadMusic } from '../../Services/downloadMusics';
 import { styles } from './styles';
 
@@ -279,29 +280,51 @@ const PlayerMusic = ({ route }) => {
 
     // Atualiza a playlist ao adicionar ou remover música
     const addSongToPlaylist = async (playlistId) => {
-        if (!playerMusic.id) return;
-
+        if (!playerMusic?.id || !playerMusic?.url) return;
+    
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistDoc = await getDoc(playlistRef);
-
+    
         if (!playlistDoc.exists()) {
             console.error("Playlist não encontrada!");
             return;
         }
-
+    
         const playlistData = playlistDoc.data();
-        const songExists = playlistData.songs.some((song) => song.id === playerMusic.id);
-
+        const songExists = playlistData.songs?.some((song) => song.id === playerMusic.id);
+    
         if (songExists) {
             // Remover a música da playlist
             await updateDoc(playlistRef, {
                 songs: playlistData.songs.filter((song) => song.id !== playerMusic.id)
             });
         } else {
-            // Adicionar a música na playlist
-            await updateDoc(playlistRef, {
-                songs: arrayUnion({ ...playerMusic, addedBy: Auth.currentUser.displayName, addedByUid: Auth.currentUser.uid })
-            });
+            try {
+                // Upload da música para o Firebase Storage
+                const response = await fetch(playerMusic.url);
+                const blob = await response.blob();
+    
+                const storageRef = ref(storage, `playlistMusics/${playerMusic.id}.mp3`);
+                await uploadBytes(storageRef, blob);
+    
+                const downloadUrl = await getDownloadURL(storageRef);
+    
+                const songToAdd = {
+                    id: playerMusic.id,
+                    title: playerMusic.title,
+                    author: playerMusic.author,
+                    thumbnail: playerMusic.thumbnail,
+                    url: downloadUrl,
+                    addedBy: Auth.currentUser.displayName,
+                    addedByUid: Auth.currentUser.uid,
+                };
+    
+                await updateDoc(playlistRef, {
+                    songs: arrayUnion(songToAdd),
+                });
+            } catch (error) {
+                console.error("Erro ao fazer upload da música:", error);
+            }
         }
     };
 
