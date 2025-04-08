@@ -5,7 +5,6 @@ import { FlatList } from "react-native-gesture-handler";
 
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from "expo-media-library";
-import * as FileSystem from "expo-file-system";
 
 import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -124,15 +123,15 @@ const PlaylistScreen = ({ route }) => {
             for (const song of selectedSongs) {
                 const alreadyExists = currentData.songs?.some((s) => s.id === song.id);
                 if (alreadyExists) continue;
-            
+
                 const response = await fetch(song.url);
                 const blob = await response.blob();
-            
+
                 const storageRef = ref(storage, `playlistMusics/${song.id}.mp3`);
                 await uploadBytes(storageRef, blob);
-            
+
                 const url = await getDownloadURL(storageRef);
-            
+
                 const songToAdd = {
                     id: song.id,
                     title: song.title,
@@ -142,7 +141,7 @@ const PlaylistScreen = ({ route }) => {
                     addedBy: Auth.currentUser.displayName,
                     addedByUid: Auth.currentUser.uid,
                 };
-            
+
                 uploadedSongs.push(songToAdd);
             }
 
@@ -281,6 +280,27 @@ const PlaylistScreen = ({ route }) => {
                 contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             />
+
+            <Pressable
+                onPress={() => setShowEmptyPlaylistModal(true)}
+                style={{
+                    backgroundColor: '#1E1E1E',
+                    padding: 16,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginHorizontal: 16,
+                    marginBottom: 65,
+                    marginTop: -70,
+                    borderWidth: 1,
+                    borderColor: '#333',
+                }}
+            >
+                <Ionicons name="add-circle-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
+                <Text style={{ color: '#FFF', fontSize: 16 }}>Adicionar mais músicas</Text>
+            </Pressable>
+
 
             <Modal
                 visible={showEmptyPlaylistModal}

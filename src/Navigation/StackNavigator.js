@@ -11,17 +11,19 @@ import TopTab from "./TopTab";
 import Player from "../Components/playerPlaylist";
 import PlaylistScreen from "../Screens/PlaylistScreen";
 import editPlaylist from "../Components/editPlaylist";
+import FollowersFollowingScreen from "../Services/followersAndFollowings";
+import EditMusics from "../Components/editMusicModal";
 
 export default () => {
 
     const Stack = createStackNavigator();
 
-    return(
-        <Stack.Navigator 
-        screenOptions={{
-            headerShown: false
-        }}
-        initialRouteName="Preload">
+    return (
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: false
+            }}
+            initialRouteName="Preload">
             <Stack.Screen name='Preload' component={Preload} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Register" component={Register} />
@@ -33,6 +35,8 @@ export default () => {
             <Stack.Screen name="PlaylistSettings" component={PlaylistScreen} />
             <Stack.Screen name="EditPlaylist" component={editPlaylist} />
             <Stack.Screen name="TopTab" component={TopTab} />
+            <Stack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
+            <Stack.Screen name="EditMusic" component={EditMusics} options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
         </Stack.Navigator>
     );
 }

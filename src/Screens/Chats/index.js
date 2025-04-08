@@ -80,7 +80,11 @@ export default ({ friendId, photo, friendUsername }) => {
                 <View style={styles.playVideo}>
                     <Ionicons name="musical-notes" color="#FFF" size={40} />
                 </View>
+                {item.music.thumbnail ? 
                 <Image source={{ uri: item.music.thumbnail }} style={{ width: 200, height: 200, borderRadius: 10 }} />
+                :
+                <Image source={require('../../../assets/musica.png')} style={{ width: 200, height: 200, borderRadius: 10, backgroundColor: "#AAA" }} />
+            }
 
             </Pressable>
         );

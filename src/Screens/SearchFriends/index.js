@@ -10,10 +10,10 @@ export default function SearchFriends() {
     const navigation = useNavigation();
     const { usersList } = useContext(AuthContext);
 
-    const [showProfile, setShowProfile] = useState(null); 
+    const [showProfile, setShowProfile] = useState(null);
 
     const goToProfile = (userId) => {
-        navigation.navigate("ProfileScreen", { userId }); // Passa o ID do usuário ao navegar
+        navigation.navigate("ProfileScreen", { userId: userId }); // Passa o ID do usuário ao navegar
     };
 
     const renderItem = ({ item }) => (
@@ -37,7 +37,9 @@ export default function SearchFriends() {
 
             {/* Modal para Exibir Perfil */}
             {showProfile && (
-                <Modal visible={!!showProfile} transparent={true}>
+                <Modal
+                    visible={!!showProfile}
+                    transparent={true}>
                     <View style={styles.modalBackground}>
                         <View style={styles.modal}>
                             {/* Botão de Fechar */}

@@ -26,7 +26,7 @@ const CardMusic = ({ item, togglePlay, isPlaying }) => {
                         :
                         <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
                     }
-                    <View style={{ flex: 1, marginLeft: 10, overflow: "hidden" }}>
+                    <View style={{ marginLeft: 10, overflow: "hidden", width: '70%' }}>
                         <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                         <Text style={styles.author} numberOfLines={1}>{item.author}</Text>
                     </View>

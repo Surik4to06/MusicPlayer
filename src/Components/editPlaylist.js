@@ -1,13 +1,14 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, View, Text, Image, TextInput, FlatList, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Pressable, StyleSheet, View, Text, Image, TextInput, FlatList, Alert, Modal, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage"; 
-import { db, storage } from "../Services/firebaseConfig"; 
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, storage, Auth } from "../Services/firebaseConfig";
 
 import DeleteMusicModal from "../Components/modalDeleteMusic";
 
@@ -20,6 +21,23 @@ const EditPlaylist = ({ route }) => {
     const [newThumbnail, setNewThumbnail] = useState(playlist.thumbnail);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalData, setDataModal] = useState({});
+    const [showEmptyPlaylistModal, setShowEmptyPlaylistModal] = useState(false);
+    const [musics, setMusics] = useState([]);
+    const [selecteds, setSelecteds] = useState([]);
+
+    useEffect(() => {
+        fetchAllAudioFiles();
+        const playlistRef = doc(db, "playlists", playlist.id);
+    
+        const unsubscribe = onSnapshot(playlistRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setSongs(data.songs || []);
+            }
+        });
+    
+        return () => unsubscribe(); // para remover o listener ao desmontar o componente
+    }, [playlist.id]);
 
     const pickImage = async (setImage, path) => {
         let result = await ImagePicker.launchImageLibraryAsync({
@@ -81,6 +99,136 @@ const EditPlaylist = ({ route }) => {
             console.error("Erro ao remover música:", error);
         }
         setModalVisible(false);
+    };
+
+    // listar musicas do celular
+    const fetchAllAudioFiles = async () => {
+        try {
+            let allAudio = [];
+            let hasNextPage = true;
+            let after = null;
+
+            while (hasNextPage) {
+                const media = await MediaLibrary.getAssetsAsync({
+                    mediaType: MediaLibrary.MediaType.audio,
+                    first: 100,
+                    after: after,
+                });
+
+                allAudio = [...allAudio, ...media.assets];
+                after = media.endCursor;
+                hasNextPage = media.hasNextPage;
+            }
+
+            const detailedAudio = await Promise.all(
+                allAudio.map(async (item) => {
+                    const info = await MediaLibrary.getAssetInfoAsync(item.id);
+                    return {
+                        ...item,
+                        url: info.localUri || info.uri,
+                        title: info.filename.replace(/\.[^/.]+$/, ""),
+                        author: info.artist || "Desconhecido",
+                        thumbnail: info?.album?.artwork || null,
+                    };
+                })
+            );
+
+            setMusics(detailedAudio);
+        } catch (error) {
+            Alert.alert("Erro ao buscar músicas", error.message);
+            console.error("Erro ao buscar músicas:", error);
+        }
+    };
+
+    const toggleSelect = (item) => {
+        if (selecteds.includes(item.id)) {
+            setSelecteds(selecteds.filter(id => id !== item.id));
+        } else {
+            setSelecteds([...selecteds, item.id]);
+        }
+    };
+
+    const handleAddSongs = async () => {
+        try {
+            const playlistRef = doc(db, "playlists", playlist.id);
+            const playlistSnap = await getDoc(playlistRef);
+
+            if (!playlistSnap.exists()) {
+                console.error("Playlist não encontrada!");
+                return;
+            }
+
+            const currentData = playlistSnap.data();
+            const selectedSongs = musics.filter(song => selecteds.includes(song.id));
+
+            const uploadedSongs = [];
+
+            for (const song of selectedSongs) {
+                const alreadyExists = currentData.songs?.some((s) => s.id === song.id);
+                if (alreadyExists) continue;
+
+                const response = await fetch(song.url);
+                const blob = await response.blob();
+
+                const storageRef = ref(storage, `playlistMusics/${song.id}.mp3`);
+                await uploadBytes(storageRef, blob);
+
+                const url = await getDownloadURL(storageRef);
+
+                const songToAdd = {
+                    id: song.id,
+                    title: song.title,
+                    author: song.author,
+                    thumbnail: song.thumbnail,
+                    url: url,
+                    addedBy: Auth.currentUser.displayName,
+                    addedByUid: Auth.currentUser.uid,
+                };
+
+                uploadedSongs.push(songToAdd);
+            }
+
+            if (uploadedSongs.length > 0) {
+                await updateDoc(playlistRef, {
+                    songs: [...(currentData.songs || []), ...uploadedSongs],
+                });
+
+                Alert.alert("Músicas adicionadas!", `${uploadedSongs.length} música(s) adicionada(s) à playlist.`);
+                setSelecteds([]);
+            } else {
+                Alert.alert("Nenhuma música nova para adicionar.");
+            }
+        } catch (error) {
+            console.error("Erro ao adicionar músicas:", error);
+            Alert.alert("Erro", "Não foi possível adicionar as músicas.");
+        }
+    };
+
+    // render das musicas a para adicionar
+    const renderAddItem = ({ item }) => {
+        const selected = selecteds.includes(item.id);
+
+        return (
+            <TouchableOpacity style={styles.item} onPress={() => toggleSelect(item)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    <Ionicons
+                        name={selected ? "checkbox-outline" : "square-outline"}
+                        size={24}
+                        color={selected ? "skyblue" : "#ccc"}
+                        style={{ marginRight: 10 }}
+                    />
+                    <Image
+                        source={item.thumbnail ? item.thumbnail : require('../../assets/musica.png')}
+                        style={{ width: 50, height: 50, backgroundColor: '#AAA' }}
+                    />
+                    <View style={{ marginLeft: 5, width: '60%' }}>
+                        <Text numberOfLines={2} style={{ color: '#FFF' }}>{item.title}</Text>
+                        <Text style={{ color: 'gray' }}>{item.author}</Text>
+                    </View>
+                </View>
+                <View style={{ borderWidth: 1, borderColor: '#AAA', marginTop: 10 }} />
+            </TouchableOpacity>
+        );
     };
 
     const renderItem = ({ item }) => (
@@ -156,18 +304,75 @@ const EditPlaylist = ({ route }) => {
                     </View>
                 }
                 ListFooterComponent={
-                    <DeleteMusicModal
-                        visible={modalVisible}
-                        onClose={() => setModalVisible(false)}
-                        onDelete={() => handleDelete(playlist.id, modalData.idMusic)}
-                        music={{
-                            title: modalData.title,
-                            artist: modalData.author,
-                            thumbnail: modalData.thumbnail,
-                        }}
-                    />
+                    <View>
+                        <DeleteMusicModal
+                            visible={modalVisible}
+                            onClose={() => setModalVisible(false)}
+                            onDelete={() => handleDelete(playlist.id, modalData.idMusic)}
+                            music={{
+                                title: modalData.title,
+                                artist: modalData.author,
+                                thumbnail: modalData.thumbnail,
+                            }}
+                        />
+                        <Pressable
+                            onPress={() => setShowEmptyPlaylistModal(true)}
+                            style={{
+                                backgroundColor: '#1E1E1E',
+                                padding: 16,
+                                borderRadius: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginHorizontal: 16,
+                                marginBottom: 5,
+                                borderWidth: 1,
+                                borderColor: '#333',
+                            }}
+                        >
+                            <Ionicons name="add-circle-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
+                            <Text style={{ color: '#FFF', fontSize: 16 }}>Adicionar mais músicas</Text>
+                        </Pressable>
+                    </View>
                 }
             />
+
+            <Modal
+                visible={showEmptyPlaylistModal}
+                transparent
+                animationType="slide">
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Pressable
+                            onPress={() => setShowEmptyPlaylistModal(false)}
+                            style={{ position: 'absolute', top: 20, left: 20 }}>
+                            <Ionicons name="chevron-back" color="#FFF" size={30} />
+                        </Pressable>
+
+                        <Text style={styles.modalText}>Sua playlist está vazia!</Text>
+
+                        <FlatList
+                            style={{ width: '100%' }}
+                            data={musics}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderAddItem}
+                        />
+
+                        <Pressable
+                            style={styles.modalButton}
+                            onPress={() => {
+                                if (selecteds.length === 0) {
+                                    Alert.alert("Selecione pelo menos uma música");
+                                    return;
+                                }
+                                setShowEmptyPlaylistModal(false);
+                                handleAddSongs();
+                            }}>
+                            <Text style={styles.modalButtonText}>Adicionar Músicas</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -244,6 +449,35 @@ const styles = StyleSheet.create({
         borderColor: "#444",
         marginVertical: 10,
         marginHorizontal: 15,
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    modalContent: {
+        flex: 1,
+        width: '100%',
+        backgroundColor: "#000",
+        padding: 20,
+        borderRadius: 10,
+        alignItems: "center",
+    },
+    modalText: {
+        fontSize: 18,
+        fontWeight: "bold",
+        marginBottom: 10,
+        color: '#FFF',
+    },
+    modalButton: {
+        backgroundColor: "#7CACF8",
+        padding: 10,
+        borderRadius: 5,
+    },
+    modalButtonText: {
+        color: "#FFF",
+        fontSize: 16,
     },
 });
 

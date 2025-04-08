@@ -86,7 +86,7 @@ export default function AudioList() {
                 <Text>Nenhuma música encontrada.</Text>
             ) : (
                 <FlatList
-                contentContainerStyle={{ paddingBottom: 53}}
+                    contentContainerStyle={{ paddingBottom: 53 }}
                     data={audioFiles}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
@@ -103,7 +103,7 @@ export default function AudioList() {
                             ) : (
                                 <Image
                                     source={require('../../../assets/musica.png')}
-                                    style={[ styles.images, {backgroundColor: '#AAA' }]}
+                                    style={[styles.images, { backgroundColor: '#AAA' }]}
                                 />
                             )}
 

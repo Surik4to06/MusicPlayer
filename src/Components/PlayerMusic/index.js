@@ -11,31 +11,49 @@ import { Ionicons } from "@expo/vector-icons";
 import { Auth, db, storage } from "../../Services/firebaseConfig";
 import { downloadMusic } from '../../Services/downloadMusics';
 import { styles } from './styles';
+import LikeButton from "../animatedLikeButton";
 
 const PlayerMusic = ({ route }) => {
     const { playerMusic } = route.params;
 
     const navigation = useNavigation();
 
+    const [newMessage, setNewMessage] = useState(""); // Mensagem a ser enviada
     const [sound, setSound] = useState(null);
-    const [likedSongs, setLikedSongs] = useState([]);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(1);
-    const [isPlaying, setIsPlaying] = useState(false);
     const [bottomSheetHeightPlaylist, setBottomSheetHeightPlaylist] = useState(new Animated.Value(0));
     const [bottomSheetHeightChat, setBottomSheetHeightChat] = useState(new Animated.Value(0));
+    const popupAnim = useState(new Animated.Value(0))[0]; // Para controlar a opacidade
+    const [likedSongs, setLikedSongs] = useState([]);
+    const [likedMusicLength, setLikedMusicLength] = useState(0);
     const [playlists, setPlaylists] = useState([]); // Para armazenar as playlists do usuário
     const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState(""); // Mensagem a ser enviada
-    const [shareModalVisible, setShareModalVisible] = useState(false); // Controle do modal
     const [friendsList, setFriendsList] = useState([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [shareModalVisible, setShareModalVisible] = useState(false); // Controle do modal
     const [musicSettings, setMusicSettings] = useState(false);
+    const [showPopup, setShowPopup] = useState(false);
+
 
     // Verifica se a música está curtida pelo usuário atual
     const isLiked = likedSongs.some((song) => song.id === playerMusic.id && song.uid === Auth.currentUser.uid);
 
     // Busca amigos para compartilhar a musica
     const currentUser = Auth.currentUser;
+
+    useEffect(() => {
+        const musicRef = doc(db, 'musics', playerMusic.id); // ID da música
+        const unsubscribe = onSnapshot(musicRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const likedBy = data.likedBy || [];
+                setLikedMusicLength(likedBy.length); // quantidade de likes
+            }
+        });
+
+        return () => unsubscribe();
+    }, [playerMusic.id]);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -157,37 +175,6 @@ const PlayerMusic = ({ route }) => {
         return () => backHandler.remove();
     }, [sound]);
 
-    const toggleLikedSong = async (song) => {
-        const userId = Auth.currentUser.uid;
-        const songRef = doc(db, "users", userId); // Referência ao usuário na coleção "users"
-
-        const songExists = await checkIfSongLiked(song.id, userId);
-
-        try {
-            if (songExists) {
-                // Remove a música da lista de curtidas
-                await updateDoc(songRef, {
-                    likedSongs: arrayRemove({ ...song, uid: userId }) // Remove a música da lista
-                });
-            } else {
-                // Adiciona a música na lista de curtidas
-                await updateDoc(songRef, {
-                    likedSongs: arrayUnion({ ...song, uid: userId }) // Adiciona a música na lista
-                });
-            }
-        } catch (error) {
-            console.error("Erro ao atualizar músicas curtidas:", error);
-        }
-    };
-
-    // Função para verificar se a música já foi curtida
-    const checkIfSongLiked = async (songId, userId) => {
-        const userDoc = await getDoc(doc(db, "users", userId));
-        const likedSongs = userDoc.data()?.likedSongs || [];
-
-        return likedSongs.some((s) => s.id === songId);
-    };
-
     // verifica em tempo real se a musica foi curtida
     const checkLikedSongsRealTime = () => {
         const userId = Auth.currentUser.uid;
@@ -200,6 +187,17 @@ const PlayerMusic = ({ route }) => {
 
         return unsubscribe; // Retorne a função de unsubscribe para quando não precisar mais ouvir as mudanças
     };
+
+    const handleToggleLike = async () => {
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.4, duration: 100, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
+        ]).start();
+      
+        await playSound();
+      
+        toggleLikedSong(playerMusic, setLikedSongs); // ✅ APENAS setLiked aqui
+      };
 
     // enviar mensagens 
     const sendMessage = async () => {
@@ -216,6 +214,23 @@ const PlayerMusic = ({ route }) => {
         });
 
         setNewMessage(""); // Limpa o campo após enviar
+    };
+
+    const showSharedPopup = () => {
+        setShowPopup(true);
+        Animated.timing(popupAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => {
+            setTimeout(() => {
+                Animated.timing(popupAnim, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }).start(() => setShowPopup(false));
+            }, 2000);
+        });
     };
 
     const handleSendMusic = async (musicData, friendId) => {
@@ -239,6 +254,8 @@ const PlayerMusic = ({ route }) => {
 
         const messagesRef = collection(db, `chats/${chatId}/messages`);
         await addDoc(messagesRef, message);
+
+        showSharedPopup();
     };
 
 
@@ -281,18 +298,18 @@ const PlayerMusic = ({ route }) => {
     // Atualiza a playlist ao adicionar ou remover música
     const addSongToPlaylist = async (playlistId) => {
         if (!playerMusic?.id || !playerMusic?.url) return;
-    
+
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistDoc = await getDoc(playlistRef);
-    
+
         if (!playlistDoc.exists()) {
             console.error("Playlist não encontrada!");
             return;
         }
-    
+
         const playlistData = playlistDoc.data();
         const songExists = playlistData.songs?.some((song) => song.id === playerMusic.id);
-    
+
         if (songExists) {
             // Remover a música da playlist
             await updateDoc(playlistRef, {
@@ -303,12 +320,12 @@ const PlayerMusic = ({ route }) => {
                 // Upload da música para o Firebase Storage
                 const response = await fetch(playerMusic.url);
                 const blob = await response.blob();
-    
+
                 const storageRef = ref(storage, `playlistMusics/${playerMusic.id}.mp3`);
                 await uploadBytes(storageRef, blob);
-    
+
                 const downloadUrl = await getDownloadURL(storageRef);
-    
+
                 const songToAdd = {
                     id: playerMusic.id,
                     title: playerMusic.title,
@@ -318,7 +335,7 @@ const PlayerMusic = ({ route }) => {
                     addedBy: Auth.currentUser.displayName,
                     addedByUid: Auth.currentUser.uid,
                 };
-    
+
                 await updateDoc(playlistRef, {
                     songs: arrayUnion(songToAdd),
                 });
@@ -334,24 +351,24 @@ const PlayerMusic = ({ route }) => {
         return (
             <Pressable onPress={() => addSongToPlaylist(item.id)} style={styles.playlistItem}>
 
-                    {item.thumbnail === null ?
-                        <Image source={require('../../../assets/musica.png')} style={styles.playlistThumbnail} />
-                        :
-                        <Image source={{ uri: item.thumbnail }} style={styles.playlistThumbnail} />
-                    }
-                    <View style={{marginLeft: 5}}>
+                {item.thumbnail === null ?
+                    <Image source={require('../../../assets/musica.png')} style={styles.playlistThumbnail} />
+                    :
+                    <Image source={{ uri: item.thumbnail }} style={styles.playlistThumbnail} />
+                }
+                <View style={{ marginLeft: 5 }}>
 
-                        <Text numberOfLines={1} style={styles.playlistName}>{item.name}</Text>
-                        <View style={styles.addButton}>
-                            <Ionicons
-                                name={songInPlaylist ? "remove-circle-outline" : "add-circle-outline"}
-                                size={28}
-                                color={songInPlaylist ? 'red' : 'lightgreen'}
-                                style={{ marginRight: 5 }}
-                            />
-                            <Text style={styles.addButtonText}>{songInPlaylist ? "Remover música" : "Adicionar música"}</Text>
-                        </View>
+                    <Text numberOfLines={1} style={styles.playlistName}>{item.name}</Text>
+                    <View style={styles.addButton}>
+                        <Ionicons
+                            name={songInPlaylist ? "remove-circle-outline" : "add-circle-outline"}
+                            size={28}
+                            color={songInPlaylist ? 'red' : 'lightgreen'}
+                            style={{ marginRight: 5 }}
+                        />
+                        <Text style={styles.addButtonText}>{songInPlaylist ? "Remover música" : "Adicionar música"}</Text>
                     </View>
+                </View>
             </Pressable>
         );
     };
@@ -380,10 +397,12 @@ const PlayerMusic = ({ route }) => {
 
             {/* Botão pra editar a musica caso ela seja do usuario */}
             {currentUser.uid === playerMusic.uidAuthor &&
-                <Pressable style={[styles.backButton, { right: 20, left: 'none' }]} onPress={async () => {
-                    setMusicSettings(true);
+                <Pressable style={[styles.backButton, { right: 20, left: 'none' }]} onPress={() => {
+                    navigation.navigate("EditMusic", {
+                        musicData: playerMusic
+                    });
                 }}>
-                    <Ionicons style={{}} name="settings-outline" size={30} color="#FFF" />
+                    <Ionicons name="settings-outline" size={30} color="#FFF" />
                 </Pressable>
             }
 
@@ -400,12 +419,8 @@ const PlayerMusic = ({ route }) => {
                     </View>
 
                     <View style={styles.containerBtns}>
-                        <Pressable onPress={() => toggleLikedSong(playerMusic)}>
-                            <Ionicons
-                                name={isLiked ? "heart" : "heart-outline"}
-                                size={37}
-                                color={isLiked ? "red" : "#FFF"}
-                            />
+                        <Pressable onPress={() => {handleToggleLike}}>
+                            <LikeButton song={playerMusic} />
                         </Pressable>
 
                         <Pressable onPress={toggleBottomSheetChat}>
@@ -505,6 +520,7 @@ const PlayerMusic = ({ route }) => {
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
 
+                        <Text style={{ color: '#FFF', fontSize: 20, textAlign: 'left', width: '100%' }}>Compartilhar com... </Text>
                         <Pressable
                             style={styles.closeButtonText}
                             onPress={() => setShareModalVisible(false)}
@@ -515,24 +531,55 @@ const PlayerMusic = ({ route }) => {
                         <FlatList
                             data={friendsList}
                             keyExtractor={(item) => item.uid}
-                            horizontal={true}
+                            contentContainerStyle={{ marginTop: 10 }}
                             renderItem={({ item }) => (
                                 <View style={styles.friendItem}>
                                     <Pressable
-                                        style={{ justifyContent: 'center', alignItems: 'center' }}
+                                        style={styles.containerItems}
                                         onPress={() => handleSendMusic(playerMusic, item.uid)}>
-                                        <Image
-                                            source={{ uri: item.photo }} // Supondo que o link da foto do perfil esteja nesse formato
-                                            style={styles.friendImage}
 
-                                        />
-                                        <Text style={{ color: 'gray' }}>{item.displayName}</Text>
+                                        <Image source={{ uri: item.wallpaper }} style={[StyleSheet.absoluteFillObject, { borderRadius: 10, backgroundColor: 'gray' }]} />
+
+                                        <Image source={{ uri: item.photo }} style={styles.friendImage} />
+
+                                        <Text style={styles.friendName}>{item.displayName}</Text>
+
                                     </Pressable>
                                 </View>
                             )}
                         />
                     </View>
                 </View>
+
+                {/* Popup de feedback pra aparecer que foi compartilhada a musica */}
+                {showPopup && (
+                    <Animated.View
+                        style={{
+                            position: "absolute",
+                            bottom: 40,
+                            left: 0,
+                            right: 0,
+                            alignItems: "center",
+                            opacity: popupAnim,
+                            transform: [{
+                                translateY: popupAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [20, 0],
+                                })
+                            }],
+                            zIndex: 999999999,
+                        }}
+                    >
+                        <View style={{
+                            backgroundColor: "#222",
+                            paddingHorizontal: 16,
+                            paddingVertical: 10,
+                            borderRadius: 20,
+                        }}>
+                            <Text style={{ color: "#fff", fontWeight: "bold" }}>Música compartilhada com sucesso!</Text>
+                        </View>
+                    </Animated.View>
+                )}
             </Modal>
 
             {/* Modal para permitir edição da musica pelo usuario mesmo após ja publicar */}

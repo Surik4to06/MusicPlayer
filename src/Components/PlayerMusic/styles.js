@@ -28,7 +28,7 @@ export const styles = StyleSheet.create({
         width: 250,
         height: 250,
         borderRadius: 10,
-        marginBottom: 20
+        marginBottom: 10
     },
     title: {
         fontSize: 22,
@@ -47,7 +47,7 @@ export const styles = StyleSheet.create({
     },
     sliderContainer: {
         width: "90%",
-        marginTop: 40,
+        marginTop: 20,
         flexDirection: 'row',
     },
     slider: {
@@ -219,7 +219,13 @@ export const styles = StyleSheet.create({
     friendItem: {
         flexDirection: "row",
         alignItems: "center",
-        marginVertical: 10,
+        marginVertical: 5,
+    },
+    containerItems: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        paddingVertical: 5,
     },
     friendImage: {
         width: 60,
@@ -227,10 +233,17 @@ export const styles = StyleSheet.create({
         borderRadius: 9999,
         marginRight: 10,
     },
+    friendName: {
+        color: '#FFF',
+        textShadowColor: '#000',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
     closeButtonText: {
         position: 'absolute',
         top: 10,
         right: 10,
+        zIndex: 9999,
     },
     modalSettings: {
         position: 'absolute',
@@ -244,7 +257,7 @@ export const styles = StyleSheet.create({
         padding: 15,
     },
     modalThumbnail: {
-        height: 90, 
+        height: 90,
         width: 90,
         borderRadius: 15
     },

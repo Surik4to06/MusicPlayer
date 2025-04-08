@@ -1,32 +1,30 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, collection, query, where } from "firebase/firestore";
+import { View, Text, Image, Pressable, StyleSheet, ScrollView, FlatList } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-import { Auth, db } from "../Services/firebaseConfig";
-import MyMusics from "../Screens/MyMusics";
+import { Ionicons } from '@expo/vector-icons';
+import { Audio } from "expo-av";
 
-const Tab = createMaterialTopTabNavigator();
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, collection, query, where } from "firebase/firestore";
+import { Auth, db } from "../Services/firebaseConfig";
 
 const ProfileScreen = ({ route }) => {
     const navigation = useNavigation();
     const currentUser = Auth.currentUser;
-    const userId = route.params?.userId || currentUser.uid;
+    const { userId } = route.params;
     const isCurrentUser = userId === currentUser.uid;
 
     const [userData, setUserData] = useState({});
     const [isFollowing, setIsFollowing] = useState(false);
-
     const [userMusics, setUserMusics] = useState([]);
+    const [durations, setDurations] = useState({});
 
     useEffect(() => {
         if (!userId) return;
 
         // Referência para a coleção "musics" filtrando pelo "authorId"
         const musicsRef = collection(db, "musics");
-        const q = query(musicsRef, where("authorId", "==", userId));
+        const q = query(musicsRef, where("uidAuthor", "==", userId));
 
         // Listener para atualizar em tempo real
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -56,6 +54,65 @@ const ProfileScreen = ({ route }) => {
         // Remover listener ao desmontar o componente
         return () => unsubscribe();
     }, [userId]);
+
+    useEffect(() => {
+        userMusics.forEach(music => {
+            if (!durations[music.id]) {
+                fetchMusicDuration(music);
+            }
+        });
+    }, [userMusics]);
+
+    //pega a duração de cada musica
+    const fetchMusicDuration = async (music) => {
+        try {
+            const { sound } = await Audio.Sound.createAsync(
+                { uri: music.url },
+                { shouldPlay: false }
+            );
+
+            const status = await sound.getStatusAsync();
+            if (status.isLoaded) {
+                setDurations(prev => ({
+                    ...prev,
+                    [music.id]: status.durationMillis
+                }));
+            }
+
+            await sound.unloadAsync();
+        } catch (error) {
+            console.log("Erro ao buscar duração da música:", error);
+        }
+    };
+
+    //formata o tempo da musica
+    const formatDuration = (millis) => {
+        if (!millis) return '...';
+        const totalSec = Math.floor(millis / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    };
+
+
+    const renderItem = ({ item }) => {
+        return (
+            <Pressable
+                onPress={() => navigation.navigate("PlayerMusic", { playerMusic: item })}
+                style={styles.musicsItem}>
+                {item.thumbnail ?
+                    <Image source={{ uri: item.thumbnail }} style={{ width: 80, height: 80, borderRadius: 15, backgroundColor: '#AAA' }} />
+                    :
+                    <Image source={require('../../assets/musica.png')} style={{ width: 80, height: 80, borderRadius: 15, backgroundColor: '#AAA' }} />
+                }
+                <View style={styles.musicData}>
+                    <Text numberOfLines={1} style={styles.title}>{item.title}</Text>
+                    <Text style={styles.author}>{item.author}</Text>
+                    <Text style={styles.duration}>{formatDuration(durations[item.id])}</Text>
+                </View>
+            </Pressable>
+        );
+    };
 
     const handleFollow = async () => {
         const userRef = doc(db, "users", userId);
@@ -103,14 +160,14 @@ const ProfileScreen = ({ route }) => {
     };
 
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
             <View style={styles.containerSecond}>
                 {/* Botão voltar para a pesquisa */}
                 <Pressable
                     style={styles.btnBack}
                     onPress={() => {
                         navigation.reset({
-                            routes: [{name: 'Main'}]
+                            routes: [{ name: 'Main' }]
                         });
                     }}>
                     <Ionicons style={{ marginLeft: -3 }} name="chevron-back-outline" color='#FFF' size={30} />
@@ -144,20 +201,21 @@ const ProfileScreen = ({ route }) => {
                 </View>
             </View>
 
-            <Tab.Navigator screenOptions={{
-                tabBarLabelStyle: { color: '#FFF' },
-                tabBarStyle: { backgroundColor: '#000' }
-            }}>
-                <Tab.Screen name="MyMusics" initialParams={userId} component={MyMusics} />
-            </Tab.Navigator>
-        </View>
+            <Text style={{ color: '#FFF', backgroundColor: '#3c3c3c', textAlign: 'center', fontSize: 20, paddingVertical: 8 }}>Músicas</Text>
+            <FlatList
+                scrollEnabled={false}
+                data={userMusics}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderItem}
+                contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 3 }} />
+        </ScrollView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#9c9c9c",
+        backgroundColor: "#000",
     },
     btnBack: {
         position: 'absolute',
@@ -175,6 +233,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        paddingBottom: 30,
     },
     containerTerd: {
         flex: 1,
@@ -203,6 +262,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#353535',
         padding: 10,
         borderRadius: 15,
+        marginTop: 20,
     },
     btnProfileText: {
         fontSize: 18,
@@ -219,7 +279,31 @@ const styles = StyleSheet.create({
         backgroundColor: '#000',
         zIndex: 2,
     },
-
+    musicsItem: {
+        flexDirection: 'row',
+        backgroundColor: '#3c3c3c',
+        padding: 3,
+        paddingHorizontal: 5,
+        borderRadius: 15,
+        marginTop: 10,
+    },
+    musicData: {
+        marginTop: 3,
+        marginLeft: 20,
+        width: '70%',
+    },
+    title: {
+        color: '#FFF',
+        fontSize: 18,
+    },
+    author: {
+        color: '#b5b5b5',
+    },
+    duration: {
+        color: '#b5b5b5',
+        fontSize: 18,
+        marginTop: 5,
+    },
 });
 
 

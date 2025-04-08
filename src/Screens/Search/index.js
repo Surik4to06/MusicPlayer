@@ -150,6 +150,7 @@ export default () => {
         tabBarStyle: { backgroundColor: '#000' },
         tabBarInactiveTintColor: 'gray',
         tabBarActiveTintColor: '#FFF',
+        tabBarIndicatorStyle: {backgroundColor: '#FFF'},
       }}>
         <Tab.Screen name="Users" component={SearchFriends} />
         <Tab.Screen name="Musics" component={SearchMusic} />

@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FlatList, View, Animated, Easing } from "react-native";
 import { Audio } from "expo-av"; // 🔊 Biblioteca de áudio
 
 import CardMusic from "../../Components/cardMusic";
 import { styles } from "./styles";
-import { AuthContext } from "../../Context/AuthContext";
 import { Auth, db } from "../../Services/firebaseConfig"; // Certifique-se de que o Firebase está configurado corretamente
 import { doc, onSnapshot } from "firebase/firestore"; // Funções do Firestore
 

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Modal } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 
 import { Auth, db } from "../../Services/firebaseConfig";
+import { useSocialData } from "../../Services/socialData";
 import MyMusics from "../MyMusics";
 import Likeds from "../Likeds";
 import { styles } from './styles';
@@ -22,26 +23,16 @@ const ProfileScreen = ({ route }) => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
 
-    const [userMusics, setUserMusics] = useState([]);
+    const { followersList, followingList, friendsList } = useSocialData(userId);
 
-    useEffect(() => {
-        if (!userId) return;
-
-        // Referência para a coleção "musics" filtrando pelo "authorId"
-        const musicsRef = collection(db, "musics");
-        const q = query(musicsRef, where("authorId", "==", userId));
-
-        // Listener para atualizar em tempo real
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const musics = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setUserMusics(musics);
+    const openModal = (tab) => {
+        navigation.navigate('FollowersFollowingScreen', {
+          followersList,
+          followingList,
+          friendsList,
+          initialRoute: tab
         });
-
-        return () => unsubscribe();
-    }, [userId]);
+      };
 
     useEffect(() => {
         // Referência do documento do usuário no Firestore
@@ -127,14 +118,14 @@ const ProfileScreen = ({ route }) => {
                     <Text style={styles.username}>{userData.displayName}</Text>
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '50%', marginTop: 10 }}>
-                        <View>
+                        <Pressable onPress={() => openModal('Seguidores')}>
                             <Text style={styles.numDados}>{userData.followersCount}</Text>
                             <Text style={styles.textDados}>Seguidores</Text>
-                        </View>
-                        <View>
+                        </Pressable>
+                        <Pressable onPress={() => openModal('Seguindo')}>
                             <Text style={styles.numDados}>{userData.followingCount}</Text>
                             <Text style={styles.textDados}>Seguindo</Text>
-                        </View>
+                        </Pressable>
                     </View>
 
                     {!isCurrentUser && (
@@ -149,20 +140,21 @@ const ProfileScreen = ({ route }) => {
                 tabBarStyle: { backgroundColor: '#000' },
                 tabBarInactiveTintColor: 'gray',
                 tabBarActiveTintColor: '#FFF',
+                tabBarIndicatorStyle: {backgroundColor: "#FFF"},
             }}>
-                <Tab.Screen 
-                name="MyMusics" 
-                initialParams={userId} 
-                component={MyMusics} 
-                options={{
-                    title: 'Minhas Musicas',
-                }}/>
-                <Tab.Screen 
-                name="Liked" 
-                component={Likeds} 
-                options={{
-                    title: 'Curtidas',
-                }}/>
+                <Tab.Screen
+                    name="MyMusics"
+                    initialParams={userId}
+                    component={MyMusics}
+                    options={{
+                        title: 'Minhas Musicas',
+                    }} />
+                <Tab.Screen
+                    name="Liked"
+                    component={Likeds}
+                    options={{
+                        title: 'Curtidas',
+                    }} />
             </Tab.Navigator>
 
             <Modal
@@ -170,7 +162,7 @@ const ProfileScreen = ({ route }) => {
                 transparent={true}
                 animationType="slide">
                 <Pressable style={styles.modalBackground}
-                onPress={() => setShowSettings(false)} />
+                    onPress={() => setShowSettings(false)} />
 
                 <View style={styles.modal}>
                     <Pressable onPress={() => {
@@ -182,7 +174,7 @@ const ProfileScreen = ({ route }) => {
 
                     <Pressable onPress={() => {
                         navigation.reset({
-                            routes: [{name: 'Login'}]
+                            routes: [{ name: 'Login' }]
                         });
                         setShowSettings(false);
                     }}>

@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, FlatList, Pressable, ActivityIndicator } from "react-native";
-import { Auth, db } from "../../Services/firebaseConfig";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { styles } from "./styles";
 import { useNavigation, useRoute } from "@react-navigation/native";
+
+import { Audio } from "expo-av";
+import { Ionicons } from '@expo/vector-icons';
+
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { Auth, db } from "../../Services/firebaseConfig";
+
+import { styles } from "./styles";
 
 export default () => {
     const [userMusics, setUserMusics] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [durations, setDurations] = useState({});
 
     const navigation = useNavigation();
     const route = useRoute();
@@ -21,17 +27,19 @@ export default () => {
         }
     }, [userId]);
 
+    useEffect(() => {
+        userMusics.forEach(music => {
+            if (!durations[music.id]) {
+                fetchMusicDuration(music);
+            }
+        });
+    }, [userMusics]);
+
     const fetchUserMusics = () => {
         setLoading(true);
 
         try {
-            if (!userId) {
-                console.error("Erro: userId indefinido.");
-                setLoading(false);
-                return;
-            }
-
-            const q = query(collection(db, "musics"), where("uidAuthor", "==", userId));
+            const q = query(collection(db, "musics"), where("uidAuthor", "==", Auth.currentUser.uid));
 
             // Escuta mudanças em tempo real
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -53,6 +61,35 @@ export default () => {
         }
     };
 
+    const fetchMusicDuration = async (music) => {
+        try {
+            const { sound } = await Audio.Sound.createAsync(
+                { uri: music.url },
+                { shouldPlay: false }
+            );
+
+            const status = await sound.getStatusAsync();
+            if (status.isLoaded) {
+                setDurations(prev => ({
+                    ...prev,
+                    [music.id]: status.durationMillis
+                }));
+            }
+
+            await sound.unloadAsync();
+        } catch (error) {
+            console.log("Erro ao buscar duração da música:", error);
+        }
+    };
+
+    //formata o tempo da musica
+    const formatDuration = (millis) => {
+        if (!millis) return '...';
+        const totalSec = Math.floor(millis / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    };
 
     return (
         <View style={styles.container}>
@@ -60,17 +97,30 @@ export default () => {
                 <ActivityIndicator size="large" color="#FFF" />
             ) : userMusics.length > 0 ? (
                 <FlatList
-                    contentContainerStyle={{ paddingBottom: 58, paddingTop: 3 }}
+                    contentContainerStyle={{ paddingBottom: 61 }}
                     data={userMusics}
                     keyExtractor={(item) => item.id}
-                    numColumns={3}
                     renderItem={({ item }) => (
-                        <Pressable onPress={() => navigation.navigate('PlayerMusic', { playerMusic: item })}>
-                            {item.thumbnail === null ?
-                                <Image source={require('../../../assets/musica.png')} style={[styles.videos, { backgroundColor: '#BCBCBC'}]} />
-                                :
-                                <Image source={{ uri: item.thumbnail }} style={styles.videos} />
-                            }
+                        <Pressable
+                            onPress={() => {
+                                navigation.navigate('PlayerMusic', { playerMusic: item })
+                            }}
+                            style={styles.musicsItem}>
+                            <View>
+                                <View style={styles.playBtnMusic}>
+                                <Ionicons name="play" color='#FFF' size={30} style={{marginLeft: 3}} />
+                                </View>
+                                {item.thumbnail ?
+                                    <Image source={{ uri: item.thumbnail }} style={{ width: 80, height: 80, borderRadius: 15, backgroundColor: '#AAA' }} />
+                                    :
+                                    <Image source={require('../../../assets/musica.png')} style={{ width: 80, height: 80, borderRadius: 15, backgroundColor: '#AAA' }} />
+                                }
+                            </View>
+                            <View style={styles.musicData}>
+                                <Text numberOfLines={1} style={styles.title}>{item.title || 'Sem título'}</Text>
+                                <Text style={styles.author}>{item.author || 'Desconhecido'}</Text>
+                                <Text style={styles.duration}>{formatDuration(durations[item.id])}</Text>
+                            </View>
                         </Pressable>
                     )}
                 />

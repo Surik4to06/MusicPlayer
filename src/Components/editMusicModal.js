@@ -1,20 +1,42 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Image, Pressable, Alert, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, TextInput, Image, Pressable, Alert,
+  StyleSheet, ActivityIndicator
+} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Auth, db, storage } from '../../Services/firebaseConfig';
+import { Auth, db, storage } from '../Services/firebaseConfig';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
-import { styles } from './styles';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { styles } from '../Screens/Uploads/styles';
 
-const UploadMusic = () => {
+const EditMusic = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
   const [musicName, setMusicName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const uniqueId = Date.now().toString() + Math.floor(Math.random() * 1000);
+  const route = useRoute();
+  const navigation = useNavigation();
+  const existingMusic = route.params?.musicData;
+
+  useEffect(() => {
+    const musicId = route.params?.musicData?.id;
+    if (!musicId) return;
+  
+    const unsubscribe = onSnapshot(doc(db, 'musics', musicId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMusicName(data.title);
+        setThumbnail(data.thumbnail ? { uri: data.thumbnail } : null);
+        setAudioFile({ uri: data.url, name: 'Arquivo existente' });
+      }
+    });
+  
+    return () => unsubscribe(); // limpa o listener
+  }, []);
 
   const pickAudio = async () => {
     try {
@@ -50,53 +72,45 @@ const UploadMusic = () => {
     }
   };
 
-  const uploadMusic = async () => {
+  const uploadUpdates = async () => {
     setLoading(true);
-    if (!musicName || !audioFile) {
-      Alert.alert("Erro", "Preencha todos os campos e selecione o arquivo de áudio.");
+
+    if (!musicName || !existingMusic) {
+      Alert.alert("Erro", "Nome da música inválido.");
       setLoading(false);
       return;
     }
 
     try {
-      const responseAudio = await fetch(audioFile.uri);
-      const blobAudio = await responseAudio.blob();
-      const audioRef = ref(storage, `musics/${Date.now()}_${audioFile.name}`);
-      await uploadBytes(audioRef, blobAudio);
-      const audioDownloadUrl = await getDownloadURL(audioRef);
+      const updates = { title: musicName };
 
-      let thumbnailUrl = null;
-      if (thumbnail) {
-        const responseThumb = await fetch(thumbnail.uri);
-        const blobThumb = await responseThumb.blob();
-        const thumbnailRef = ref(storage, `thumbnails/${Date.now()}.jpg`);
-        await uploadBytes(thumbnailRef, blobThumb);
-        thumbnailUrl = await getDownloadURL(thumbnailRef);
+      if (audioFile && !audioFile.uri.startsWith('https://')) {
+        const responseAudio = await fetch(audioFile.uri);
+        const blobAudio = await responseAudio.blob();
+        const audioRef = ref(storage, `musics/${Date.now()}_${audioFile.name}`);
+        await uploadBytes(audioRef, blobAudio);
+        updates.url = await getDownloadURL(audioRef);
       }
 
-      const musicData = {
-        id: uniqueId,
-        uidAuthor: Auth.currentUser.uid,
-        title: musicName,
-        author: Auth.currentUser.displayName,
-        url: audioDownloadUrl,
-        thumbnail: thumbnailUrl || null,
-      };
+      if (thumbnail && !thumbnail.uri.startsWith('https://')) {
+        const responseThumb = await fetch(thumbnail.uri);
+        const blobThumb = await responseThumb.blob();
+        const thumbRef = ref(storage, `thumbnails/${Date.now()}.jpg`);
+        await uploadBytes(thumbRef, blobThumb);
+        updates.thumbnail = await getDownloadURL(thumbRef);
+      }
 
-      await setDoc(doc(db, "musics", uniqueId), musicData);
-      Alert.alert("Sucesso", "Sua música foi publicada com sucesso!");
-      resetForm();
+      const musicDocRef = doc(db, 'musics', existingMusic.id);
+      await updateDoc(musicDocRef, updates);
+
+      Alert.alert("Sucesso", "Música atualizada com sucesso!");
+      navigation.goBack();
     } catch (error) {
-      Alert.alert("Erro", "Ocorreu um erro ao fazer o upload.");
+      console.error("Erro ao atualizar:", error);
+      Alert.alert("Erro", "Ocorreu um erro ao atualizar.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setAudioFile(null);
-    setThumbnail(null);
-    setMusicName('');
   };
 
   return (
@@ -124,7 +138,9 @@ const UploadMusic = () => {
       <Text style={styles.authorName}>{Auth.currentUser.displayName}</Text>
 
       {audioFile ? (
-        <Pressable style={[styles.containerBtnUpload, { backgroundColor: 'transparent', marginTop: 25 }]} onPress={pickAudio}>
+        <Pressable
+          style={[styles.containerBtnUpload, { backgroundColor: 'transparent', marginTop: 25 }]}
+          onPress={pickAudio}>
           <Text numberOfLines={2} style={styles.uploadBtn}>{`Áudio: ${audioFile.name}`}</Text>
         </Pressable>
       ) : (
@@ -136,12 +152,12 @@ const UploadMusic = () => {
       {loading ? (
         <ActivityIndicator color='#FFF' size={36} />
       ) : (
-        <Pressable style={[styles.containerBtnUpload, { marginTop: 10 }]} onPress={uploadMusic}>
-          <Text style={styles.uploadBtn}>Fazer Upload</Text>
+        <Pressable style={[styles.containerBtnUpload, { marginTop: 10 }]} onPress={uploadUpdates}>
+          <Text style={styles.uploadBtn}>Atualizar Música</Text>
         </Pressable>
       )}
     </View>
   );
 };
 
-export default UploadMusic;
+export default EditMusic;
