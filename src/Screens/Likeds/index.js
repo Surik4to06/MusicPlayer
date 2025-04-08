@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FlatList, View, Animated, Easing } from "react-native";
-import { Audio } from "expo-av"; // 🔊 Biblioteca de áudio
-
+import { FlatList, View, Animated, Easing, Text } from "react-native";
+import { Audio } from "expo-av";
 import CardMusic from "../../Components/cardMusic";
 import { styles } from "./styles";
-import { Auth, db } from "../../Services/firebaseConfig"; // Certifique-se de que o Firebase está configurado corretamente
-import { doc, onSnapshot } from "firebase/firestore"; // Funções do Firestore
+import { Auth, db } from "../../Services/firebaseConfig";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 export default () => {
-    const [likedSongs, setLikedSongs] = useState([]); // Estado para as músicas curtidas
+    const [likedSongs, setLikedSongs] = useState([]);
     const [playerMusic, setPlayerMusic] = useState(null);
     const [currentMusicId, setCurrentMusicId] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -16,22 +15,34 @@ export default () => {
     const textAnimations = useRef({}).current;
 
     useEffect(() => {
-        // Verificar se o usuário está autenticado antes de tentar buscar as músicas
-        if (Auth.currentUser?.uid) {
-            const userRef = doc(db, "users", Auth.currentUser.uid); // Referência ao documento do usuário
+        let unsubscribe;
 
-            const unsubscribe = onSnapshot(userRef, (docSnapshot) => {
-                const data = docSnapshot.data();
-                const likedSongs = data?.likedSongs || [];
-                setLikedSongs(likedSongs); // Atualiza o estado com as músicas curtidas em tempo real
+        const loadLikedSongs = () => {
+            if (!Auth.currentUser?.uid) return;
+
+            const userRef = doc(db, "users", Auth.currentUser.uid);
+            unsubscribe = onSnapshot(userRef, async (docSnap) => {
+                const data = docSnap.data();
+                const likedRefs = data?.likedSongs || [];
+
+                // Busca os dados atualizados das músicas curtidas
+                const songsPromises = likedRefs.map(async (ref) => {
+                    const musicDoc = await getDoc(doc(db, "musics", ref.id));
+                    if (musicDoc.exists()) {
+                        return { id: musicDoc.id, ...musicDoc.data() };
+                    }
+                    return null;
+                });
+
+                const songs = (await Promise.all(songsPromises)).filter(Boolean);
+                setLikedSongs(songs); // Atualiza de forma limpa
             });
+        };
 
-            // Limpar o listener quando o componente for desmontado
-            return () => unsubscribe();
-        }
-    }, [Auth.currentUser?.uid]); // A dependência é o `uid` do usuário autenticado
+        loadLikedSongs();
+        return () => unsubscribe?.();
+    }, []);
 
-    // Configura animações iniciais para cada música
     useEffect(() => {
         likedSongs.forEach((item) => {
             if (!textAnimations[item.id]) {
@@ -40,14 +51,12 @@ export default () => {
                     author: new Animated.Value(0),
                 };
             }
-
-            startTextAnimation(item.id); // Inicia animação automaticamente
+            startTextAnimation(item.id);
         });
     }, [likedSongs]);
 
-    // Inicia animação do texto (infinita)
     const startTextAnimation = (id) => {
-        if (!textAnimations[id]) return; // Evita erro se a animação não existir ainda
+        if (!textAnimations[id]) return;
 
         textAnimations[id].title.setValue(0);
         textAnimations[id].author.setValue(0);
@@ -85,7 +94,6 @@ export default () => {
         ).start();
     };
 
-    // Alterna entre tocar/pausar a música
     const togglePlay = async (item) => {
         if (!item?.id || !item.url) return;
 
@@ -118,7 +126,6 @@ export default () => {
     const renderItem = ({ item }) => {
         if (!item?.id) return null;
 
-        // Garante que as animações foram inicializadas corretamente
         if (!textAnimations[item.id]) {
             textAnimations[item.id] = {
                 title: new Animated.Value(0),
@@ -136,16 +143,21 @@ export default () => {
         );
     };
 
-
     return (
         <View style={styles.container}>
-            <FlatList
-                contentContainerStyle={{ paddingBottom: 53, paddingTop: 3 }}
-                style={styles.flatList}
-                data={likedSongs}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id}
-            />
+            {likedSongs.length <= 0 ? (
+                <Text style={{ color: '#FFF', fontSize: 18, textAlign: 'center' }}>
+                    Você ainda não possui nenhuma música curtida :(
+                </Text>
+            ) : (
+                <FlatList
+                    contentContainerStyle={{ paddingBottom: 53, paddingTop: 3 }}
+                    style={styles.flatList}
+                    data={likedSongs}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                />
+            )}
         </View>
     );
 };

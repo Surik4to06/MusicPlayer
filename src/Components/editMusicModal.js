@@ -6,36 +6,44 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Auth, db, storage } from '../Services/firebaseConfig';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { styles } from '../Screens/Uploads/styles';
+
+const extractStoragePath = (url) => {
+  const decodedUrl = decodeURIComponent(url);
+  const match = decodedUrl.match(/\/o\/(.+)\?alt=media/);
+  return match ? match[1] : null;
+};
 
 const EditMusic = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
   const [musicName, setMusicName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [updatedMusicData, setUpdatedMusicData] = useState(null);
 
   const route = useRoute();
   const navigation = useNavigation();
   const existingMusic = route.params?.musicData;
 
   useEffect(() => {
-    const musicId = route.params?.musicData?.id;
+    const musicId = existingMusic?.id;
     if (!musicId) return;
-  
+
     const unsubscribe = onSnapshot(doc(db, 'musics', musicId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        setUpdatedMusicData({ id: docSnap.id, ...data });
         setMusicName(data.title);
         setThumbnail(data.thumbnail ? { uri: data.thumbnail } : null);
         setAudioFile({ uri: data.url, name: 'Arquivo existente' });
       }
     });
-  
-    return () => unsubscribe(); // limpa o listener
+
+    return () => unsubscribe();
   }, []);
 
   const pickAudio = async () => {
@@ -113,8 +121,59 @@ const EditMusic = () => {
     }
   };
 
+  const handleDeleteMusic = () => {
+    Alert.alert(
+      "Excluir música",
+      "Tem certeza que deseja excluir esta música?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir", style: "destructive", onPress: async () => {
+            try {
+              if (!updatedMusicData) return;
+
+              // Deletar arquivo de áudio
+              if (updatedMusicData.url) {
+                const path = extractStoragePath(updatedMusicData.url);
+                if (path) {
+                  const audioRef = ref(storage, path);
+                  await deleteObject(audioRef).catch(() => null);
+                }
+              }
+
+              // Deletar thumbnail
+              if (updatedMusicData.thumbnail) {
+                const thumbPath = extractStoragePath(updatedMusicData.thumbnail);
+                if (thumbPath) {
+                  const thumbRef = ref(storage, thumbPath);
+                  await deleteObject(thumbRef).catch(() => null);
+                }
+              }
+
+              // Deletar documento no Firestore
+              await deleteDoc(doc(db, 'musics', updatedMusicData.id));
+
+              Alert.alert("Música excluída com sucesso.");
+              navigation.goBack();
+            } catch (error) {
+              console.error("Erro ao excluir:", error);
+              Alert.alert("Erro", "Ocorreu um erro ao excluir.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
+      <Pressable
+        onPress={handleDeleteMusic}
+        style={{ position: 'absolute', top: 50, right: 20, zIndex: 10 }}
+      >
+        <Ionicons name="trash" size={30} color="red" />
+      </Pressable>
+
       {thumbnail && <Image blurRadius={7} source={{ uri: thumbnail.uri }} style={StyleSheet.absoluteFillObject} />}
 
       <Pressable onPress={pickThumbnail} style={styles.thumbnail}>

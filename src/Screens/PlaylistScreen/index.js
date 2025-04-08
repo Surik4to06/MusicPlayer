@@ -11,6 +11,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Auth, db } from "../../Services/firebaseConfig";
 
 import { styles } from './styles';
+import CompartilharPlaylistModal from '../../Components/modalSharePlaylist';
 
 const PlaylistScreen = ({ route }) => {
     const { playlist, friendName } = route.params;
@@ -21,6 +22,7 @@ const PlaylistScreen = ({ route }) => {
     const [selecteds, setSelecteds] = useState([]);
     const [userPhotos, setUserPhotos] = useState({});
     const [playlistData, setPlaylistData] = useState(playlist);
+    const [showShareModal, setShowShareModal] = useState(false);
 
     useEffect(() => {
         fetchAllAudioFiles();
@@ -265,7 +267,9 @@ const PlaylistScreen = ({ route }) => {
                     <Text style={styles.buttonText}>Play</Text>
                 </Pressable>
 
-                <Pressable style={styles.button}>
+                <Pressable 
+                onPress={() => {setShowShareModal(true)}}
+                style={styles.button}>
                     <Ionicons name="arrow-redo-outline" size={18} color="#fff" />
                     <Text style={styles.buttonText}>Compartilhar</Text>
                 </Pressable>
@@ -338,6 +342,14 @@ const PlaylistScreen = ({ route }) => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal pra adicionar usuarios na playlist com aviso de confirmação */}
+            <CompartilharPlaylistModal
+                user={Auth.currentUser.uid}
+                showShareModal={showShareModal}
+                setShowShareModal={setShowShareModal}
+                playlist={playlist}
+            />
         </ScrollView>
     );
 };

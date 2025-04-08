@@ -196,7 +196,7 @@ const PlayerMusic = ({ route }) => {
       
         await playSound();
       
-        toggleLikedSong(playerMusic, setLikedSongs); // ✅ APENAS setLiked aqui
+        toggleLikedSong(playerMusic, setLikedSongs); // APENAS setLiked aqui
       };
 
     // enviar mensagens 

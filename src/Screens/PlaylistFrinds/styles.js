@@ -61,6 +61,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
   },
+  line: {
+    borderWidth: 2,
+    borderColor: '#AAA',
+    borderRadius: 9999,
+    marginTop: 10,
+  },
   numSongs: {
     color: '#d1d1d1',
     fontSize: 16,
