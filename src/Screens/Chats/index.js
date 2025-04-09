@@ -244,7 +244,6 @@ export default ({ friendId, photo, friendUsername }) => {
                     <Image source={{ uri: photo }} style={styles.friendPhoto} />
                     <Text style={styles.friendUsername}>{friendUsername}</Text>
                 </View>
-                <Ionicons name="ellipsis-horizontal" size={34} color="#FFF" style={styles.headerIcon} />
             </View>
 
             <FlatList

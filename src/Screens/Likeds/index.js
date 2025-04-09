@@ -5,6 +5,7 @@ import CardMusic from "../../Components/cardMusic";
 import { styles } from "./styles";
 import { Auth, db } from "../../Services/firebaseConfig";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { useIsFocused } from "@react-navigation/native";
 
 export default () => {
     const [likedSongs, setLikedSongs] = useState([]);
@@ -13,6 +14,13 @@ export default () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [sound, setSound] = useState(null);
     const textAnimations = useRef({}).current;
+    const isFocused = useIsFocused();
+
+    useEffect(() => {
+        if (!isFocused && sound) {
+            sound.pauseAsync();
+        }
+    }, [isFocused]);
 
     useEffect(() => {
         let unsubscribe;

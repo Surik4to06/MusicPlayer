@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { StatusBar, TextInput, View } from 'react-native';
 
-import { collection, query, where, getDocs, limit, orderBy, startAt } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db } from "../../Services/firebaseConfig";
 
 import { AuthContext } from '../../Context/AuthContext';
@@ -14,8 +14,17 @@ import SearchMusic from '../SearchMusics';
 const Tab = createMaterialTopTabNavigator();
 
 export default () => {
+  const { currentSound } = useContext(AuthContext);
+
   const { setMusicList, setUsersList } = useContext(AuthContext);
   const [searchText, setSearchText] = useState('');
+
+  useEffect(() => {
+    // Quando o texto de busca mudar, pausar a música
+    if (searchText.trim() && currentSound) {
+      currentSound.pauseAsync();
+    }
+  }, [searchText]);
 
   useEffect(() => {
     const getResults = async () => {
@@ -40,9 +49,9 @@ export default () => {
   const searchMusicInFirebase = async (searchTerm) => {
     try {
       const musicRef = collection(db, "musics");
-  
+
       let q;
-  
+
       if (searchTerm.trim()) {
         q = query(
           musicRef,
@@ -57,7 +66,7 @@ export default () => {
           limit(10) // quando sem busca, pega só os primeiros 10
         );
       }
-  
+
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -77,7 +86,7 @@ export default () => {
   const searchMusicInAudius = async (searchTerm) => {
     const termosBR = ["mpb", "trap", "sertanejo", "funk", "bossa", "pagode"];
     const termos = searchTerm?.trim() ? [searchTerm] : termosBR;
-  
+
     try {
       const results = await Promise.all(
         termos.map(term =>
@@ -86,7 +95,7 @@ export default () => {
             .then(data => data.data || [])
         )
       );
-  
+
       const allTracks = results.flat()
         .filter((track, index, self) =>
           !!track.id && self.findIndex(t => t.id === track.id) === index
@@ -99,15 +108,15 @@ export default () => {
           url: `https://discoveryprovider.audius.co/v1/tracks/${track.id}/stream?app_name=MusicFinder`,
           source: "audius"
         }));
-  
+
       return allTracks.slice(0, 10); // retorna só as 10 primeiras
     } catch (error) {
       console.error("Erro ao buscar no Audius:", error);
       return [];
     }
   };
-  
-  
+
+
 
   // Pesquisa usuários no Firebase
   const searchUsers = async (searchTerm) => {
@@ -150,7 +159,7 @@ export default () => {
         tabBarStyle: { backgroundColor: '#000' },
         tabBarInactiveTintColor: 'gray',
         tabBarActiveTintColor: '#FFF',
-        tabBarIndicatorStyle: {backgroundColor: '#FFF'},
+        tabBarIndicatorStyle: { backgroundColor: '#FFF' },
       }}>
         <Tab.Screen name="Users" component={SearchFriends} />
         <Tab.Screen name="Musics" component={SearchMusic} />

@@ -1,19 +1,16 @@
 import React, { useContext, useState, useEffect } from "react";
 import { View, FlatList, Animated, Easing } from "react-native";
 import { Audio } from "expo-av";
+import { useIsFocused } from "@react-navigation/native";
 
 import { styles } from "./styles";
 import { AuthContext } from "../../Context/AuthContext";
-
 import CardMusic from "../../Components/cardMusic";
-import { useNavigation } from "@react-navigation/native";
 
 const MusicList = () => {
+    const { musicsList, currentSound, setCurrentSound } = useContext(AuthContext);
+    const isFocused = useIsFocused();
 
-    const { musicsList } = useContext(AuthContext);
-
-    const [playerMusic, setPlayerMusic] = useState(null);
-    const [currentSound, setCurrentSound] = useState(null);
     const [currentMusicId, setCurrentMusicId] = useState(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(1);
@@ -72,7 +69,15 @@ const MusicList = () => {
         return () => clearInterval(interval);
     }, [currentSound]);
 
+    // PAUSAR QUANDO PERDER FOCO DA TELA
+    useEffect(() => {
+        if (!isFocused && currentSound) {
+            currentSound.pauseAsync();
+        }
+    }, [isFocused]);
+
     const togglePlay = async (item) => {
+        // Pausar música atual
         if (currentSound) {
             await currentSound.stopAsync();
             await currentSound.unloadAsync();
@@ -80,8 +85,10 @@ const MusicList = () => {
             setCurrentMusicId(null);
         }
 
+        // Se clicou na mesma música, só para
         if (currentMusicId === item.id) return;
 
+        // Toca a nova música
         try {
             const { sound, status } = await Audio.Sound.createAsync(
                 { uri: item.url },
@@ -91,37 +98,18 @@ const MusicList = () => {
             setCurrentMusicId(item.id);
             setPosition(0);
             setDuration(status.durationMillis || 1);
-
-            // setTimeout(async () => {
-            //     if (currentSound) {
-            //         await currentSound.stopAsync();
-            //         await currentSound.unloadAsync();
-            //         setCurrentSound(null);
-            //         setCurrentMusicId(null);
-            //     }
-            //   }, item.duration * 1000);
-
         } catch (error) {
             console.error("Erro ao tocar música:", error);
         }
     };
 
-    const renderItem = ({ item }) => {
-        const isPlaying = currentMusicId === item.id;
-        const animation = textAnimations[item.id] || {
-            title: new Animated.Value(0),
-            author: new Animated.Value(0)
-        };
-
-        return (
-            <CardMusic
-                item={item}
-                setPlayerMusic={setPlayerMusic}
-                togglePlay={togglePlay}
-                isPlaying={currentMusicId === item.id.toString()}
-            />
-        );
-    };
+    const renderItem = ({ item }) => (
+        <CardMusic
+            item={item}
+            togglePlay={togglePlay}
+            isPlaying={currentMusicId === item.id.toString()}
+        />
+    );
 
     return (
         <View style={styles.container}>
