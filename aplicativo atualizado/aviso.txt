@@ -1,0 +1,1 @@
+como o sistema que usei para desenvolver esse app foi windows, só consigo gerar .apk e .aab, nessa mesma pasta tem o .abb e .apk, instale ou use o que preferir
