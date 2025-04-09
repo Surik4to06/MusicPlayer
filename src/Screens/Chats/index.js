@@ -42,13 +42,13 @@ export default ({ friendId, photo, friendUsername }) => {
                 ...doc.data(),
             }));
             setMessages(msgs);
-
-            const unread = msgs.filter(msg => msg.to === currentUser.uid && !msg.isRead).length;
-            setUnreadCount(unread);
+            setUnreadCount(msgs.filter(msg => msg.to === currentUser.uid && !msg.isRead).length);
 
             if (isFocused) {
-                marcarMensagensComoLidas();
+                // espera o estado atualizar e depois marca como lida
+                setTimeout(() => marcarMensagensComoLidas(), 100);
             }
+
         });
 
         return () => unsubscribe();
@@ -80,11 +80,11 @@ export default ({ friendId, photo, friendUsername }) => {
                 <View style={styles.playVideo}>
                     <Ionicons name="musical-notes" color="#FFF" size={40} />
                 </View>
-                {item.music.thumbnail ? 
-                <Image source={{ uri: item.music.thumbnail }} style={{ width: 200, height: 200, borderRadius: 10 }} />
-                :
-                <Image source={require('../../../assets/musica.png')} style={{ width: 200, height: 200, borderRadius: 10, backgroundColor: "#AAA" }} />
-            }
+                {item.music.thumbnail ?
+                    <Image source={{ uri: item.music.thumbnail }} style={{ width: 200, height: 200, borderRadius: 10 }} />
+                    :
+                    <Image source={require('../../../assets/musica.png')} style={{ width: 200, height: 200, borderRadius: 10, backgroundColor: "#AAA" }} />
+                }
 
             </Pressable>
         );
